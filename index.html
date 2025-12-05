@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d6efd">
+
+  <script>
+  if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+  }
+  </script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>खर्चा खाता / बैंक खाता</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  body {
+    font-family: 'Noto Sans Devanagari', sans-serif;
+    background: linear-gradient(135deg, #d1c4e9, #bbdefb);
+    margin: 0; padding: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #512da8;
+    color: white;
+    text-align: center;
+    padding: 15px;
+    font-size: 22px;
+  }
+  .screen { display: none; padding: 20px; text-align: center; }
+  .active { display: block; }
+
+  .account-btn {
+    display: block;
+    background: #4caf50;
+    color: white;
+    margin: 15px auto;
+    padding: 15px;
+    border-radius: 12px;
+    width: 90%;
+    font-size: 18px;
+  }
+  .account-btn:nth-child(2) { background: #2196f3; }
+
+  .balance-box {
+    background: white;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 10px auto;
+    width: 90%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  }
+  .credit { color: blue; font-weight: bold; }
+  .debit { color: red; font-weight: bold; }
+  .balance { color: green; font-weight: bold; }
+
+  table {
+    width: 100%;
+    background: white;
+    border-collapse: collapse;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  th, td {
+    border-bottom: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+  }
+  th { background: #512da8; color: white; }
+
+  button { border: none; border-radius: 6px; cursor: pointer; }
+  .add-btn, .print-btn {
+    background: #4caf50;
+    color: white;
+    padding: 10px;
+    margin: 5px;
+    width: 45%;
+    border-radius: 10px;
+    font-size: 16px;
+  }
+  .print-btn { background: #2196f3; }
+  .edit-btn { background: #ff9800; color: white; padding: 6px 10px; }
+  .delete-btn { background: #f44336; color: white; padding: 6px 10px; }
+  .back-btn {
+    background: #673ab7;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+  }
+
+  .popup {
+    display: none; justify-content: center; align-items: center;
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6);
+  }
+  .popup-content {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    width: 85%; max-width: 330px;
+    animation: fadeIn .3s ease;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:scale(.9);} to{opacity:1;transform:scale(1);} }
+
+  input {
+    width: 100%; padding: 8px; margin: 6px 0;
+    border: 1px solid #ccc; border-radius: 6px;
+    font-size: 16px;
+  }
+  label { font-weight: bold; font-size: 15px; }
+
+  .popup-btn {
+    width: 48%;
+    padding: 12px;
+    font-size: 17px;
+    margin: 5px 1%;
+    border-radius: 10px;
+  }
+  .save-btn { background: #4caf50; color: white; }
+  .cancel-btn { background: #9e9e9e; color: white; }
+
+  .filters {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .filters input {
+    width: 45%;
+    font-size: 15px;
+  }
+
+  /* 🔥 FIX: dynamic scroll area */
+  .table-container {
+    height: calc(100vh - 310px);
+    overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+
+<header>💼 खर्चा खाता / बैंक खाता</header>
+
+<div class="screen active" id="homeScreen">
+  <h2>खाते का सारांश</h2>
+  <div id="balanceCards">
+    <div class="balance-box">
+      🧾 खर्चा खाता - <span class="balance" id="kharchBalance">₹0</span>
+    </div>
+    <div class="balance-box">
+      🏦 बैंक खाता - <span class="balance" id="bankBalance">₹0</span>
+    </div>
+  </div>
+  <button class="account-btn" onclick="openLedger('kharchKhata')">🧾 खर्चा खाता खोलें</button>
+  <button class="account-btn" onclick="openLedger('bankKhata')">🏦 बैंक खाता खोलें</button>
+</div>
+
+<div class="screen" id="ledgerScreen">
+  <button class="back-btn" onclick="goHome()">🔙 वापस जाएं</button>
+  <h2 id="ledgerTitle"></h2>
+
+  <div class="balance-box">
+    <span class="credit">Credit ₹<span id="creditTotal">0</span></span> |
+    <span class="debit">Debit ₹<span id="debitTotal">0</span></span> |
+    <span class="balance">Balance ₹<span id="balance">0</span></span>
+  </div>
+
+  <div class="filters">
+    <input type="month" id="monthFilter">
+    <input type="text" id="searchBox" placeholder="🔍 विवरण से खोजें...">
+  </div>
+
+  <div style="margin-bottom:10px;">
+    <select id="typeFilter" style="padding:8px; border-radius:6px; font-size:15px;">
+      <option value="">सभी</option>
+      <option value="credit">केवल Credit</option>
+      <option value="debit">केवल Debit</option>
+    </select>
+  </div>
+
+  <button class="add-btn" onclick="openPopup()">➕ नई Entry</button>
+  <button class="print-btn" onclick="window.print()">🖨️ Print</button>
+
+  <!-- ⭐ FIX wrapper -->
+  <div class="table-container">
+    <table id="ledgerTable">
+      <thead><tr><th>तारीख</th><th>विवरण</th><th>Credit</th><th>Debit</th><th>Action</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="popup" id="popupForm">
+  <div class="popup-content">
+    <h3 style="text-align:center;">नई एंट्री जोड़ें</h3>
+    <label>तारीख</label>
+    <input type="date" id="date">
+    <label>विवरण</label>
+    <input list="descList" type="text" id="desc" placeholder="जैसे Rent, Deposit...">
+    <datalist id="descList"></datalist>
+    <label style="color:blue;">💰 Credit राशि</label>
+    <input type="number" id="credit" value="0">
+    <label style="color:red;">💸 Debit राशि</label>
+    <input type="number" id="debit" value="0">
+    <div style="display:flex; justify-content:center;">
+      <button class="popup-btn save-btn" onclick="saveNew()">💾 Save</button>
+      <button class="popup-btn cancel-btn" onclick="closePopup()">❌ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+/* FIREBASE CONFIG SAME AS YOURS */
+const firebaseConfig = {
+  apiKey: "AIzaSyADn_HUkP4ZfTOQ46eoQdXKIY7VAKd6odI",
+  authDomain: "debit-4db50.firebaseapp.com",
+  databaseURL: "https://debit-4db50-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  projectId: "debit-4db50",
+  storageBucket: "debit-4db50.appspot.com",
+  messagingSenderId: "495330105885",
+  appId: "1:495330105885:web:18436900b881a1ee6b84f4",
+  measurementId: "G-761HLSK9LB"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let currentPath = "";
+let allData = {};
+let descSuggestions = new Set();
+
+function openLedger(type){
+  currentPath = type;
+  document.getElementById('homeScreen').classList.remove('active');
+  document.getElementById('ledgerScreen').classList.add('active');
+  document.getElementById('ledgerTitle').innerText = type === 'kharchKhata' ? "🧾 खर्चा खाता" : "🏦 बैंक खाता";
+  loadLedger();
+}
+
+function goHome(){
+  document.getElementById('ledgerScreen').classList.remove('active');
+  document.getElementById('homeScreen').classList.add('active');
+}
+
+function openPopup(){
+  document.getElementById("popupForm").style.display = "flex";
+  document.getElementById("date").value = new Date().toISOString().split('T')[0];
+  document.getElementById("desc").value = "";
+  document.getElementById("credit").value = "0";
+  document.getElementById("debit").value = "0";
+}
+
+function closePopup(){
+  document.getElementById("popupForm").style.display = "none";
+}
+
+function saveNew(){
+  const data = {
+    date: date.value,
+    desc: desc.value,
+    credit: Number(credit.value),
+    debit: Number(debit.value)
+  };
+  if(!data.desc) return alert("विवरण दर्ज करें!");
+  db.ref(currentPath).push(data);
+  descSuggestions.add(data.desc);
+  updateDescList();
+  closePopup();
+}
+
+function updateDescList(){
+  const list = document.getElementById("descList");
+  list.innerHTML = "";
+  descSuggestions.forEach(v=>{
+    const option = document.createElement("option");
+    option.value = v;
+    list.appendChild(option);
+  });
+}
+
+function loadLedger(){
+  db.ref(currentPath).on("value", snap=>{
+    allData = snap.val() || {};
+    renderTable();
+  });
+}
+
+function renderTable(){
+  const month = document.getElementById("monthFilter").value;
+  const search = document.getElementById("searchBox").value.toLowerCase();
+  const typeFilter = document.getElementById("typeFilter").value;
+
+  const tbody = document.querySelector("#ledgerTable tbody");
+  tbody.innerHTML = "";
+  let c=0,d=0;
+  Object.keys(allData).forEach(id=>{
+    const e = allData[id];
+    if(month && !e.date.startsWith(month)) return;
+    if(search && !e.desc.toLowerCase().includes(search)) return;
+    if(typeFilter === "credit" && e.credit <= 0) return;
+    if(typeFilter === "debit" && e.debit <= 0) return;
+
+    c += e.credit; d += e.debit;
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${e.date}</td><td>${e.desc}</td><td class='credit'>${e.credit}</td><td class='debit'>${e.debit}</td>
+    <td><button class='edit-btn' onclick="editEntry('${id}',${e.credit},${e.debit},'${e.date}','${e.desc}')">✏️</button>
+    <button class='delete-btn' onclick="db.ref('${currentPath}/${id}').remove()">🗑️</button></td>`;
+    tbody.appendChild(tr);
+    descSuggestions.add(e.desc);
+  });
+  updateDescList();
+  document.getElementById("creditTotal").innerText=c;
+  document.getElementById("debitTotal").innerText=d;
+  document.getElementById("balance").innerText=c-d;
+  updateMainBalances();
+}
+
+function editEntry(id, c, d, dateVal, descVal) {
+  openPopup();
+  document.getElementById("date").value = dateVal;
+  document.getElementById("desc").value = descVal;
+  document.getElementById("credit").value = c;
+  document.getElementById("debit").value = d;
+
+  const saveBtn = document.querySelector(".save-btn");
+  saveBtn.onclick = function() {
+    const updated = {
+      date: document.getElementById("date").value,
+      desc: document.getElementById("desc").value.trim(),
+      credit: Number(document.getElementById("credit").value),
+      debit: Number(document.getElementById("debit").value)
+    };
+    db.ref(`${currentPath}/${id}`).update(updated).then(() => {
+      closePopup();
+      saveBtn.onclick = saveNew;
+    });
+  };
+}
+
+function updateMainBalances(){
+  ["kharchKhata","bankKhata"].forEach(path=>{
+    db.ref(path).once("value",snap=>{
+      let c=0,d=0;
+      const data=snap.val()||{};
+      Object.values(data).forEach(e=>{c+=e.credit;d+=e.debit});
+      const bal=c-d;
+      document.getElementById(path==="kharchKhata"?"kharchBalance":"bankBalance").innerText="₹"+bal;
+    });
+  });
+}
+
+document.getElementById("monthFilter").addEventListener("input", renderTable);
+document.getElementById("searchBox").addEventListener("input", renderTable);
+document.getElementById("typeFilter").addEventListener("change", renderTable);
+
+updateMainBalances();
+</script>
+</body>
+</html>
