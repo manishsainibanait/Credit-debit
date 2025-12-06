@@ -1,12 +1,12 @@
-const CACHE_NAME = "saini-static-cache";  
+const CACHE_NAME = "saini-static-v10";
 
 const urlsToCache = [
-  "manifest.json",
-  "icon-192.png",
-  "icon-512.png"
+  "/manifest.json",
+  "/icon-192.png",
+  "/icon-512.png"
 ];
 
-// INSTALL EVENT
+// INSTALL
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
@@ -16,36 +16,25 @@ self.addEventListener("install", event => {
   self.skipWaiting();
 });
 
-// FETCH EVENT
+// FETCH
 self.addEventListener("fetch", event => {
-  const req = event.request;
-
-  // ⭐ index.html हमेशा network से (LATEST UI)
-  if (req.mode === "navigate") {
+  if (event.request.mode === "navigate") {
     event.respondWith(
-      fetch(req).catch(() => caches.match("index.html"))
+      fetch(event.request).catch(() => caches.match("/index.html"))
     );
     return;
   }
-
-  // बाकी files cache से
   event.respondWith(
-    caches.match(req).then(res => {
-      return res || fetch(req);
-    })
+    caches.match(event.request).then(r => r || fetch(event.request))
   );
 });
 
-// ACTIVATE EVENT
+// ACTIVATE
 self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys().then(names => {
-      return Promise.all(
-        names.map(n => {
-          if (n !== CACHE_NAME) return caches.delete(n);
-        })
-      );
-    })
+    caches.keys().then(names =>
+      Promise.all(names.map(n => n !== CACHE_NAME && caches.delete(n)))
+    )
   );
   clients.claim();
 });
