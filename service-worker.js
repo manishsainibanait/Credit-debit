@@ -1,9 +1,9 @@
 const CACHE_NAME = "saini-static-v10";
 
 const urlsToCache = [
-  "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png"
+  "manifest.json",
+  "icon-192.png",
+  "icon-512.png"
 ];
 
 // INSTALL
@@ -18,12 +18,14 @@ self.addEventListener("install", event => {
 
 // FETCH
 self.addEventListener("fetch", event => {
+
   if (event.request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match("/index.html"))
+      fetch(event.request).catch(() => caches.match("index.html"))
     );
     return;
   }
+
   event.respondWith(
     caches.match(event.request).then(r => r || fetch(event.request))
   );
