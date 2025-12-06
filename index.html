@@ -6,7 +6,7 @@
 
   <script>
   if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js');;
+      navigator.serviceWorker.register('service-worker.js');
   }
   </script>
 
@@ -53,7 +53,11 @@
     margin: 10px auto;
     width: 90%;
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    position: sticky;
+    top: 80px;
+    z-index: 999;
   }
+
   .credit { color: blue; font-weight: bold; }
   .debit { color: red; font-weight: bold; }
   .balance { color: green; font-weight: bold; }
@@ -103,26 +107,13 @@
     border-radius: 12px;
     padding: 15px;
     width: 85%; max-width: 330px;
-    animation: fadeIn .3s ease;
   }
-  @keyframes fadeIn { from{opacity:0;transform:scale(.9);} to{opacity:1;transform:scale(1);} }
 
   input {
     width: 100%; padding: 8px; margin: 6px 0;
     border: 1px solid #ccc; border-radius: 6px;
     font-size: 16px;
   }
-  label { font-weight: bold; font-size: 15px; }
-
-  .popup-btn {
-    width: 48%;
-    padding: 12px;
-    font-size: 17px;
-    margin: 5px 1%;
-    border-radius: 10px;
-  }
-  .save-btn { background: #4caf50; color: white; }
-  .cancel-btn { background: #9e9e9e; color: white; }
 
   .filters {
     display: flex;
@@ -131,15 +122,61 @@
     flex-wrap: wrap;
     margin-bottom: 10px;
   }
-  .filters input {
-    width: 45%;
-    font-size: 15px;
+
+  .table-container {
+    height: calc(100vh - 350px);
+    overflow-y: auto;
   }
 
-  /* 🔥 FIX: dynamic scroll area */
-  .table-container {
-    height: calc(100vh - 310px);
-    overflow-y: auto;
+  /* ⭐ PRINT CLEAN MODE */
+  @media print {
+
+    header,
+    .back-btn,
+    .filters,
+    .add-btn,
+    .print-btn,
+    #sortFilter,
+    #typeFilter,
+    #searchBox,
+    #fromDate,
+    #toDate,
+    .popup,
+    .account-btn,
+    #homeScreen,
+    h2,
+    .balance-box {
+      display: none !important;
+    }
+
+    #printHeading {
+      display: block !important;
+      text-align:center;
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      white-space: pre-line;
+    }
+
+    body { background: white !important; }
+
+    .table-container {
+      overflow: visible !important;
+      height: auto !important;
+    }
+
+    table {
+      width: 100% !important;
+      border: 1px solid black !important;
+    }
+
+    th, td {
+      border: 1px solid black !important;
+    }
+
+    td button {
+      display: none !important;
+    }
   }
 </style>
 </head>
@@ -171,10 +208,19 @@
     <span class="balance">Balance ₹<span id="balance">0</span></span>
   </div>
 
+  <!-- ⭐ Print heading -->
+  <h3 id="printHeading" style="display:none;"></h3>
+
   <div class="filters">
-    <input type="month" id="monthFilter">
+    <input type="date" id="fromDate">
+    <input type="date" id="toDate">
     <input type="text" id="searchBox" placeholder="🔍 विवरण से खोजें...">
   </div>
+
+  <select id="sortFilter" style="padding:8px; border-radius:6px; font-size:15px;">
+    <option value="new">📅 Newest First</option>
+    <option value="old">📅 Oldest First</option>
+  </select>
 
   <div style="margin-bottom:10px;">
     <select id="typeFilter" style="padding:8px; border-radius:6px; font-size:15px;">
@@ -187,7 +233,6 @@
   <button class="add-btn" onclick="openPopup()">➕ नई Entry</button>
   <button class="print-btn" onclick="window.print()">🖨️ Print</button>
 
-  <!-- ⭐ FIX wrapper -->
   <div class="table-container">
     <table id="ledgerTable">
       <thead><tr><th>तारीख</th><th>विवरण</th><th>Credit</th><th>Debit</th><th>Action</th></tr></thead>
@@ -217,8 +262,9 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 <script>
-/* FIREBASE CONFIG SAME AS YOURS */
+
 const firebaseConfig = {
   apiKey: "AIzaSyADn_HUkP4ZfTOQ46eoQdXKIY7VAKd6odI",
   authDomain: "debit-4db50.firebaseapp.com",
@@ -226,8 +272,7 @@ const firebaseConfig = {
   projectId: "debit-4db50",
   storageBucket: "debit-4db50.appspot.com",
   messagingSenderId: "495330105885",
-  appId: "1:495330105885:web:18436900b881a1ee6b84f4",
-  measurementId: "G-761HLSK9LB"
+  appId: "1:495330105885:web:18436900b881a1ee6b84f4"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -241,7 +286,7 @@ function openLedger(type){
   currentPath = type;
   document.getElementById('homeScreen').classList.remove('active');
   document.getElementById('ledgerScreen').classList.add('active');
-  document.getElementById('ledgerTitle').innerText = type === 'kharchKhata' ? "🧾 खर्चा खाता" : "🏦 बैंक खाता";
+  document.getElementById('ledgerTitle').innerText = type === 'kharchKhata' ? "खर्चा खाता" : "बैंक खाता";
   loadLedger();
 }
 
@@ -293,34 +338,88 @@ function loadLedger(){
   });
 }
 
+/* ⭐ FULL FILTER + PERFECT SORT ⭐ */
 function renderTable(){
-  const month = document.getElementById("monthFilter").value;
+  const from = document.getElementById("fromDate").value;
+  const to = document.getElementById("toDate").value;
   const search = document.getElementById("searchBox").value.toLowerCase();
   const typeFilter = document.getElementById("typeFilter").value;
+  const sortType = document.getElementById("sortFilter").value;
+
+  const monthValue = (!to && from) ? from.substring(0,7) : "";
 
   const tbody = document.querySelector("#ledgerTable tbody");
   tbody.innerHTML = "";
-  let c=0,d=0;
-  Object.keys(allData).forEach(id=>{
-    const e = allData[id];
-    if(month && !e.date.startsWith(month)) return;
+
+  let entries = Object.keys(allData).map(id => ({ id, ...allData[id] }));
+
+  /* ⭐ SORT BLOCK FIXED */
+  entries.sort((a, b) => {
+
+    // ---------- NEWEST FIRST ----------
+    if (sortType === "new") {
+      let diff = b.date.localeCompare(a.date);
+      if (diff !== 0) return diff;
+      return b.id.localeCompare(a.id);   // newest same-day first
+    }
+
+    // ---------- OLDEST FIRST ----------
+    else {
+      let diff = a.date.localeCompare(b.date);
+      if (diff !== 0) return diff;
+      return a.id.localeCompare(b.id);   // oldest same-day first
+    }
+  });
+
+  let c=0, d=0;
+
+  entries.forEach(e => {
+
+    if(from && to){
+      if(e.date < from || e.date > to) return;
+    }
+
+    if(from && !to){
+      if(e.date !== from){
+        if(!(monthValue && e.date.startsWith(monthValue))){
+          return;
+        }
+      }
+    }
+
     if(search && !e.desc.toLowerCase().includes(search)) return;
+
     if(typeFilter === "credit" && e.credit <= 0) return;
     if(typeFilter === "debit" && e.debit <= 0) return;
 
-    c += e.credit; d += e.debit;
+    c += e.credit;
+    d += e.debit;
+
     const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${e.date}</td><td>${e.desc}</td><td class='credit'>${e.credit}</td><td class='debit'>${e.debit}</td>
-    <td><button class='edit-btn' onclick="editEntry('${id}',${e.credit},${e.debit},'${e.date}','${e.desc}')">✏️</button>
-    <button class='delete-btn' onclick="db.ref('${currentPath}/${id}').remove()">🗑️</button></td>`;
+    tr.innerHTML=`
+      <td>${e.date}</td>
+      <td>${e.desc}</td>
+      <td class='credit'>${e.credit}</td>
+      <td class='debit'>${e.debit}</td>
+      <td>
+        <button class='edit-btn' onclick="editEntry('${e.id}',${e.credit},${e.debit},'${e.date}','${e.desc}')">✏️</button>
+        <button class='delete-btn' onclick="db.ref('${currentPath}/${e.id}').remove()">🗑️</button>
+      </td>`;
     tbody.appendChild(tr);
+
     descSuggestions.add(e.desc);
   });
+
   updateDescList();
+
   document.getElementById("creditTotal").innerText=c;
   document.getElementById("debitTotal").innerText=d;
   document.getElementById("balance").innerText=c-d;
   updateMainBalances();
+
+  /* ⭐ PRINT HEADING AUTO */
+  document.getElementById("printHeading").innerText =
+    "SAINI TRADING COMPANY\n(" + document.getElementById("ledgerTitle").innerText + ")";
 }
 
 function editEntry(id, c, d, dateVal, descVal) {
@@ -331,7 +430,7 @@ function editEntry(id, c, d, dateVal, descVal) {
   document.getElementById("debit").value = d;
 
   const saveBtn = document.querySelector(".save-btn");
-  saveBtn.onclick = function() {
+  saveBtn.onclick = () => {
     const updated = {
       date: document.getElementById("date").value,
       desc: document.getElementById("desc").value.trim(),
@@ -357,9 +456,11 @@ function updateMainBalances(){
   });
 }
 
-document.getElementById("monthFilter").addEventListener("input", renderTable);
+document.getElementById("fromDate").addEventListener("input", renderTable);
+document.getElementById("toDate").addEventListener("input", renderTable);
 document.getElementById("searchBox").addEventListener("input", renderTable);
 document.getElementById("typeFilter").addEventListener("change", renderTable);
+document.getElementById("sortFilter").addEventListener("change", renderTable);
 
 updateMainBalances();
 </script>
