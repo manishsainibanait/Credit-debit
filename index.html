@@ -128,9 +128,7 @@
     overflow-y: auto;
   }
 
-  /* ⭐ PRINT CLEAN MODE */
   @media print {
-
     header,
     .back-btn,
     .filters,
@@ -208,7 +206,6 @@
     <span class="balance">Balance ₹<span id="balance">0</span></span>
   </div>
 
-  <!-- ⭐ Print heading -->
   <h3 id="printHeading" style="display:none;"></h3>
 
   <div class="filters">
@@ -217,9 +214,12 @@
     <input type="text" id="searchBox" placeholder="🔍 विवरण से खोजें...">
   </div>
 
+  <!-- ⭐ SORT OPTIONS -->
   <select id="sortFilter" style="padding:8px; border-radius:6px; font-size:15px;">
     <option value="new">📅 Newest First</option>
     <option value="old">📅 Oldest First</option>
+    <option value="az">🔤 A to Z (Entry Up)</option>
+    <option value="za">🔤 Z to A (Entry Down)</option>
   </select>
 
   <div style="margin-bottom:10px;">
@@ -286,7 +286,8 @@ function openLedger(type){
   currentPath = type;
   document.getElementById('homeScreen').classList.remove('active');
   document.getElementById('ledgerScreen').classList.add('active');
-  document.getElementById('ledgerTitle').innerText = type === 'kharchKhata' ? "खर्चा खाता" : "बैंक खाता";
+  document.getElementById('ledgerTitle').innerText =
+    type === 'kharchKhata' ? "खर्चा खाता" : "बैंक खाता";
   loadLedger();
 }
 
@@ -338,7 +339,6 @@ function loadLedger(){
   });
 }
 
-/* ⭐ FULL FILTER + PERFECT SORT ⭐ */
 function renderTable(){
   const from = document.getElementById("fromDate").value;
   const to = document.getElementById("toDate").value;
@@ -353,22 +353,43 @@ function renderTable(){
 
   let entries = Object.keys(allData).map(id => ({ id, ...allData[id] }));
 
-  /* ⭐ SORT BLOCK FIXED */
+  /* ⭐ SORT:
+     new  = date new → old
+     old  = date old → new
+     az   = entry old → new (jaise add ki)
+     za   = entry new → old (ulta)         */
   entries.sort((a, b) => {
 
-    // ---------- NEWEST FIRST ----------
+    // DATE: NEWEST FIRST
     if (sortType === "new") {
       let diff = b.date.localeCompare(a.date);
       if (diff !== 0) return diff;
-      return b.id.localeCompare(a.id);   // newest same-day first
+      return b.id.localeCompare(a.id);
     }
 
-    // ---------- OLDEST FIRST ----------
-    else {
+    // DATE: OLDEST FIRST
+    if (sortType === "old") {
       let diff = a.date.localeCompare(b.date);
       if (diff !== 0) return diff;
-      return a.id.localeCompare(b.id);   // oldest same-day first
+      return a.id.localeCompare(b.id);
     }
+
+    // ENTRY ORDER UP (OLD → NEW)
+    if (sortType === "az") {
+      // pura pura entry order: date old→new + id old→new
+      let diff = a.date.localeCompare(b.date);
+      if (diff !== 0) return diff;
+      return a.id.localeCompare(b.id);
+    }
+
+    // ENTRY ORDER DOWN (NEW → OLD)
+    if (sortType === "za") {
+      // ulta: date new→old + id new→old
+      let diff = b.date.localeCompare(a.date);
+      if (diff !== 0) return diff;
+      return b.id.localeCompare(a.id);
+    }
+
   });
 
   let c=0, d=0;
@@ -402,7 +423,8 @@ function renderTable(){
       <td class='credit'>${e.credit}</td>
       <td class='debit'>${e.debit}</td>
       <td>
-        <button class='edit-btn' onclick="editEntry('${e.id}',${e.credit},${e.debit},'${e.date}','${e.desc}')">✏️</button>
+        <button class='edit-btn'
+          onclick="editEntry('${e.id}',${e.credit},${e.debit},'${e.date}','${e.desc.replace(/'/g,"&#39;")}')">✏️</button>
         <button class='delete-btn' onclick="db.ref('${currentPath}/${e.id}').remove()">🗑️</button>
       </td>`;
     tbody.appendChild(tr);
@@ -417,7 +439,6 @@ function renderTable(){
   document.getElementById("balance").innerText=c-d;
   updateMainBalances();
 
-  /* ⭐ PRINT HEADING AUTO */
   document.getElementById("printHeading").innerText =
     "SAINI TRADING COMPANY\n(" + document.getElementById("ledgerTitle").innerText + ")";
 }
@@ -451,7 +472,9 @@ function updateMainBalances(){
       const data=snap.val()||{};
       Object.values(data).forEach(e=>{c+=e.credit;d+=e.debit});
       const bal=c-d;
-      document.getElementById(path==="kharchKhata"?"kharchBalance":"bankBalance").innerText="₹"+bal;
+      document.getElementById(
+        path==="kharchKhata" ? "kharchBalance" : "bankBalance"
+      ).innerText="₹"+bal;
     });
   });
 }
