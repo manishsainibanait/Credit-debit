@@ -68,7 +68,6 @@
     color: #1a237e !important;
   }
 
-  /* Date formatting */
   .td-date {
     white-space: pre-wrap;
     padding: 8px 2px !important;
@@ -115,7 +114,6 @@
     font-size: 16px;
   }
 
-  /* ⭐ Your exact scroll function restored ⭐ */
   .table-container {
     height: calc(100vh - 350px);
     overflow-y: auto;
@@ -151,7 +149,6 @@
 
   #printHeaderOnly { display: none; }
 
-  /* ⭐ Big Print Font ⭐ */
   @media print {
     header, .back-btn, .add-btn, .print-btn, .popup, .account-btn, #homeScreen, 
     .balance-box, .filters, select, input, #ledgerScreen h2, .edit-btn, .delete-btn {
@@ -175,7 +172,7 @@
     th, td {
       border: 1.5px solid black !important;
       color: black !important;
-      font-size: 22px !important; /* BIG FONT FOR PRINT */
+      font-size: 22px !important;
       padding: 12px 5px !important;
       font-weight: bold !important;
     }
@@ -358,6 +355,13 @@ function loadLedger(){
   });
 }
 
+function deleteEntry(id) {
+  // ⭐ डिलीट करने से पहले कन्फर्मेशन पॉप-अप ⭐
+  if (confirm("क्या आप वाकई इस एंट्री को डिलीट करना चाहते हैं?")) {
+    db.ref(`${currentPath}/${id}`).remove();
+  }
+}
+
 function renderTable(){
   const from = document.getElementById("fromDate").value;
   const to = document.getElementById("toDate").value;
@@ -369,7 +373,6 @@ function renderTable(){
 
   let entries = Object.keys(allData).map(id => ({ id, ...allData[id] }));
   
-  // ⭐ Sorting fixed with ID for order
   entries.sort((a, b) => {
     let dateDiff = a.date.localeCompare(b.date);
     if (sortType === "new") {
@@ -397,7 +400,7 @@ function renderTable(){
       <td class='debit'>${e.debit}</td>
       <td>
         <button class='edit-btn' onclick="editEntry('${e.id}',${e.credit},${e.debit},'${e.date}','${e.desc.replace(/'/g,"&#39;")}')">✏️</button>
-        <button class='delete-btn' onclick="db.ref('${currentPath}/${e.id}').remove()">🗑️</button>
+        <button class='delete-btn' onclick="deleteEntry('${e.id}')">🗑️</button>
       </td>`;
     tbody.appendChild(tr);
   });
