@@ -254,7 +254,7 @@
 
 <div class="popup" id="popupForm">
   <div class="popup-content">
-    <h3 style="text-align:center;">नई एंट्री जोड़ें</h3>
+    <h3 id="popupTitle" style="text-align:center;">नई एंट्री जोड़ें</h3>
     <label>तारीख</label>
     <input type="date" id="date">
     <label>विवरण (नाम)</label>
@@ -265,7 +265,7 @@
     <label style="color:red;">💸 Debit राशि</label>
     <input type="number" id="debit" value="0">
     <div class="popup-btn-container">
-      <button class="popup-btn save-btn" onclick="saveNew()">💾 SAVE</button>
+      <button id="saveButton" class="popup-btn save-btn" onclick="saveNew()">💾 SAVE</button>
       <button class="popup-btn cancel-btn" onclick="closePopup()">❌ CANCEL</button>
     </div>
   </div>
@@ -315,10 +315,17 @@ function goHome(){
 
 function openPopup(){
   document.getElementById("popupForm").style.display = "flex";
+  document.getElementById("popupTitle").innerText = "नई एंट्री जोड़ें";
   document.getElementById("date").value = new Date().toISOString().split('T')[0];
   document.getElementById("desc").value = "";
   document.getElementById("credit").value = "0";
   document.getElementById("debit").value = "0";
+  
+  // Reset Save Button to saveNew
+  const saveBtn = document.getElementById("saveButton");
+  saveBtn.onclick = saveNew;
+  saveBtn.innerText = "💾 SAVE";
+  
   updateDescList();
 }
 
@@ -331,7 +338,8 @@ function saveNew(){
     date: document.getElementById("date").value,
     desc: document.getElementById("desc").value.trim(),
     credit: Number(document.getElementById("credit").value),
-    debit: Number(document.getElementById("debit").value)
+    debit: Number(document.getElementById("debit").value),
+    timestamp: Date.now()
   };
   if(!data.desc) return alert("विवरण दर्ज करें!");
   db.ref(currentPath).push(data);
@@ -356,7 +364,6 @@ function loadLedger(){
 }
 
 function deleteEntry(id) {
-  // ⭐ डिलीट करने से पहले कन्फर्मेशन पॉप-अप ⭐
   if (confirm("क्या आप वाकई इस एंट्री को डिलीट करना चाहते हैं?")) {
     db.ref(`${currentPath}/${id}`).remove();
   }
@@ -372,58 +379,83 @@ function renderTable(){
   tbody.innerHTML = "";
 
   let entries = Object.keys(allData).map(id => ({ id, ...allData[id] }));
-  
-  entries.sort((a, b) => {
-    let dateDiff = a.date.localeCompare(b.date);
-    if (sortType === "new") {
-      dateDiff = b.date.localeCompare(a.date);
-      return dateDiff !== 0 ? dateDiff : b.id.localeCompare(a.id);
-    } else {
-      return dateDiff !== 0 ? dateDiff : a.id.localeCompare(b.id);
-    }
+
+  descSuggestions.clear();
+  Object.values(allData).forEach(e => {
+    if (e.desc) descSuggestions.add(e.desc);
+  });
+  updateDescList();
+
+  entries = entries.filter(e => {
+    if (from && e.date < from) return false;
+    if (to && e.date > to) return false;
+    if (search && !e.desc.toLowerCase().includes(search)) return false;
+    if (typeFilter === "credit" && e.credit <= 0) return false;
+    if (typeFilter === "debit" && e.debit <= 0) return false;
+    return true;
   });
 
-  let tc=0, td=0;
-  entries.forEach(e => {
-    descSuggestions.add(e.desc); 
-    if(from && to && (e.date < from || e.date > to)) return;
-    if(search && !e.desc.toLowerCase().includes(search)) return;
-    if(typeFilter === "credit" && e.credit <= 0) return;
-    if(typeFilter === "debit" && e.debit <= 0) return;
+  entries.sort((a, b) => {
+    const da = Number(a.date.replace(/-/g, ""));
+    const db = Number(b.date.replace(/-/g, ""));
+    if (da !== db) return sortType === "new" ? db - da : da - db;
+    
+    const ta = a.timestamp || 0;
+    const tb = b.timestamp || 0;
+    if (ta !== tb) return sortType === "new" ? tb - ta : ta - tb;
 
-    tc += e.credit; td += e.debit;
-    const tr=document.createElement("tr");
-    tr.innerHTML=`
+    return sortType === "new" ? b.id.localeCompare(a.id) : a.id.localeCompare(b.id);
+  });
+
+  let tc = 0, td = 0;
+
+  entries.forEach(e => {
+    tc += e.credit;
+    td += e.debit;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
       <td class="td-date">${formatDate(e.date)}</td>
       <td class="customer-name">${e.desc}</td>
-      <td class='credit'>${e.credit}</td>
-      <td class='debit'>${e.debit}</td>
+      <td class="credit">${e.credit}</td>
+      <td class="debit">${e.debit}</td>
       <td>
-        <button class='edit-btn' onclick="editEntry('${e.id}',${e.credit},${e.debit},'${e.date}','${e.desc.replace(/'/g,"&#39;")}')">✏️</button>
-        <button class='delete-btn' onclick="deleteEntry('${e.id}')">🗑️</button>
+        <button class="edit-btn" onclick="editEntry('${e.id}')">✏️</button>
+        <button class="delete-btn" onclick="deleteEntry('${e.id}')">🗑️</button>
       </td>`;
     tbody.appendChild(tr);
   });
 
-  document.getElementById("creditTotal").innerText=tc;
-  document.getElementById("debitTotal").innerText=td;
-  document.getElementById("balance").innerText=tc-td;
+  document.getElementById("creditTotal").innerText = tc;
+  document.getElementById("debitTotal").innerText = td;
+  document.getElementById("balance").innerText = tc - td;
+
   updateMainBalances();
 }
 
-function editEntry(id, c, d, dateVal, descVal) {
-  openPopup();
-  document.getElementById("date").value = dateVal;
-  document.getElementById("desc").value = descVal;
-  document.getElementById("credit").value = c;
-  document.getElementById("debit").value = d;
-  document.querySelector(".save-btn").onclick = () => {
+function editEntry(id) {
+  const entry = allData[id];
+  if(!entry) return;
+
+  document.getElementById("popupForm").style.display = "flex";
+  document.getElementById("popupTitle").innerText = "एंट्री सुधारें";
+  document.getElementById("date").value = entry.date;
+  document.getElementById("desc").value = entry.desc;
+  document.getElementById("credit").value = entry.credit;
+  document.getElementById("debit").value = entry.debit;
+  
+  const saveBtn = document.getElementById("saveButton");
+  saveBtn.innerText = "💾 UPDATE";
+  saveBtn.onclick = () => {
     const updated = {
       date: document.getElementById("date").value,
       desc: document.getElementById("desc").value.trim(),
       credit: Number(document.getElementById("credit").value),
-      debit: Number(document.getElementById("debit").value)
+      debit: Number(document.getElementById("debit").value),
+      timestamp: entry.timestamp || Date.now()
     };
+    if(!updated.desc) return alert("विवरण दर्ज करें!");
+    
     db.ref(`${currentPath}/${id}`).update(updated).then(closePopup);
   };
 }
