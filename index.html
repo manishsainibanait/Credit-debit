@@ -8,6 +8,14 @@
   if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('service-worker.js');
   }
+function closePreview(){
+  document.getElementById("printPreviewModal").style.display = "none";
+}
+function applyZoom(){
+  const z = document.getElementById("zoomRange").value;
+  document.getElementById("previewContent").style.transform = `scale(${z})`;
+  document.documentElement.style.setProperty("--p-zoom", z);
+}
   </script>
 
   <meta charset="UTF-8">
@@ -215,7 +223,7 @@
     left: 0; 
     top: 0;
     width: 100%;
-    transform: scale(var(--pzoom));
+    transform: scale(var(--p-zoom));
   }
 }
 
@@ -552,7 +560,9 @@ function openCustomPreview() {
   document.getElementById("previewContent").innerHTML = html;
   document.getElementById("printPreviewModal").style.display = "flex";
 // ✅ ZOOM APPLY (CORRECT PLACE)
-document.documentElement.style.setProperty("--pzoom", 0.95);
+document.documentElement.style.setProperty("--p-zoom", 1);
+document.getElementById("zoomRange").value = 1;
+applyZoom();
 document.getElementById("previewContent").style.transform = "scale(0.95)";
 }
 
@@ -569,10 +579,22 @@ function closePreview(){
             background:black;
             z-index:9999;
             overflow:auto;">
-  <div style="background:white;padding:10px;display:flex;justify-content:space-between;">
-    <button onclick="closePreview()">❌ Close</button>
-    <button onclick="window.print()">🖨️ Print</button>
+  <div style="background:white;padding:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+  <button onclick="closePreview()">❌ Close</button>
+
+  <div style="display:flex;align-items:center;gap:6px;">
+    <b>Zoom</b>
+    <input type="range"
+           id="zoomRange"
+           min="0.5"
+           max="2"
+           step="0.05"
+           value="1"
+           oninput="applyZoom()">
   </div>
+
+  <button onclick="window.print()">🖨️ Print</button>
+</div>
   <div id="previewContent" style="background:white;padding:10px;"></div>
 </div>
 </body>
