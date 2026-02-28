@@ -178,6 +178,47 @@
     }
     th { background-color: #f2f2f2 !important; }
   }
+#printPreviewModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.95);
+  z-index: 99999;
+  display: none;
+  flex-direction: column;
+}
+.previewHeader {
+  background: #fff;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.previewBody {
+  flex: 1;
+  overflow: auto;
+  background: #334155;
+  padding: 20px;
+}
+#previewContent {
+  background: #fff;
+  padding: 25px;
+  margin: auto;
+  transform-origin: top left;
+}
+
+@media print {
+  @page { size: A4 landscape; margin: 8mm; }
+  body * { visibility: hidden; }
+  #previewContent, #previewContent * { visibility: visible; }
+  #previewContent {
+    position: absolute;
+    left: 0; 
+    top: 0;
+    width: 100%;
+    transform: scale(var(--pzoom));
+  }
+}
+
 </style>
 </head>
 <body>
@@ -233,7 +274,7 @@
 
   <div style="display: flex; justify-content: center;">
     <button class="add-btn" onclick="openPopup()">➕ नई Entry</button>
-    <button class="print-btn" onclick="window.print()">🖨️ Print</button>
+    <button class="print-btn" onclick="openCustomPreview()">🖨️ Print</button>
   </div>
 
   <div class="table-container">
@@ -478,6 +519,61 @@ document.getElementById("searchBox").addEventListener("input", renderTable);
 document.getElementById("sortFilter").addEventListener("change", renderTable);
 document.getElementById("typeFilter").addEventListener("change", renderTable);
 updateMainBalances();
+// ===== PRINT PREVIEW FUNCTIONS =====
+function openCustomPreview() {
+  const title = document.getElementById("ledgerTitle").innerText;
+  const rows = document.querySelectorAll("#ledgerTable tbody tr");
+
+  let html = `
+    <h2 style="text-align:center;">SAINI TRADING COMPANY</h2>
+    <h3 style="text-align:center;">(${title})</h3>
+    <table style="width:100%;border-collapse:collapse;" border="1">
+      <tr>
+        <th>तारीख</th>
+        <th>विवरण</th>
+        <th>Credit</th>
+        <th>Debit</th>
+      </tr>
+  `;
+
+  rows.forEach(r => {
+    const c = r.children;
+    html += `
+      <tr>
+        <td>${c[0].innerText}</td>
+        <td>${c[1].innerText}</td>
+        <td>${c[2].innerText}</td>
+        <td>${c[3].innerText}</td>
+      </tr>`;
+  });
+
+  html += `</table>`;
+
+  document.getElementById("previewContent").innerHTML = html;
+  document.getElementById("printPreviewModal").style.display = "flex";
+// ✅ ZOOM APPLY (CORRECT PLACE)
+document.documentElement.style.setProperty("--pzoom", 0.95);
+document.getElementById("previewContent").style.transform = "scale(0.95)";
+}
+
+
+function closePreview(){
+  document.getElementById("printPreviewModal").style.display = "none";
+}
 </script>
+<!-- PRINT PREVIEW MODAL -->
+<div id="printPreviewModal"
+     style="display:none;
+            position:fixed;
+            inset:0;
+            background:black;
+            z-index:9999;
+            overflow:auto;">
+  <div style="background:white;padding:10px;display:flex;justify-content:space-between;">
+    <button onclick="closePreview()">❌ Close</button>
+    <button onclick="window.print()">🖨️ Print</button>
+  </div>
+  <div id="previewContent" style="background:white;padding:10px;"></div>
+</div>
 </body>
 </html>
