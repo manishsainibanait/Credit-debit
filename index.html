@@ -305,11 +305,11 @@ function applyZoom(){
   <button class="lock-btn" onclick="verifyPin()">अनब्लॉक करें</button>
   
   <button class="lock-btn reg-fp-btn" id="regFpBtn" onclick="registerFingerprint()" style="display:none;">
-    <i class="fas fa-user-plus"></i> फिंगरप्रिंट रजिस्टर करें (Register)
+    <i class="fas fa-user-plus"></i> फिंगरप्रिंट रजिस्टर करें
   </button>
 
   <button class="lock-btn fp-btn" id="fpBtn" onclick="triggerFingerprint()" style="display:none;">
-    <i class="fas fa-fingerprint"></i> फिंगरप्रिंट से खोलें (Unlock)
+    <i class="fas fa-fingerprint"></i> फिंगरप्रिंट से खोलें
   </button>
   
   <button class="forgot-btn" onclick="forgotPin()">PIN भूल गए?</button>
@@ -612,8 +612,12 @@ document.getElementById("sortFilter").addEventListener("change", renderTable);
 document.getElementById("typeFilter").addEventListener("change", renderTable);
 updateMainBalances();
 
-// ===== SECURITY SYSTEM SCRIPT =====
+// ===== SECURITY SYSTEM SCRIPT (FIXED WEBAUTHN) =====
 const MASTER_PASSWORD = "786786";
+
+// Helpers for encoding/decoding array buffers to Base64
+const bufferToBase64 = (buffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
+const base64ToBuffer = (base64) => Uint8Array.from(atob(base64), c => c.charCodeAt(0));
 
 async function initSecurity() {
   if (!localStorage.getItem("app_pin")) {
@@ -623,104 +627,99 @@ async function initSecurity() {
     }
   }
   
-  // Update visibility of UI buttons
-  updateSecurityUI();
+  checkFpRegistration();
 
-  // Auto trigger fingerprint check if credential exists
-  if (localStorage.getItem("biometric_credential_id")) {
+  // Auto trigger fingerprint if registered
+  if (localStorage.getItem("fp_raw_id")) {
     setTimeout(triggerFingerprint, 500);
   }
 }
 
-function updateSecurityUI() {
-  const isRegistered = localStorage.getItem("biometric_credential_id");
-  const fpBtn = document.getElementById('fpBtn');
-  const regBtn = document.getElementById('regFpBtn');
-
-  if (window.PublicKeyCredential) {
-    if (isRegistered) {
-      fpBtn.style.display = 'block';
-      regBtn.style.display = 'none';
+function checkFpRegistration() {
+  const hasReg = localStorage.getItem("fp_raw_id");
+  const isSupported = !!window.PublicKeyCredential;
+  
+  if (isSupported) {
+    if (hasReg) {
+      document.getElementById('fpBtn').style.display = 'block';
+      document.getElementById('regFpBtn').style.display = 'none';
     } else {
-      fpBtn.style.display = 'none';
-      regBtn.style.display = 'block';
+      document.getElementById('fpBtn').style.display = 'none';
+      document.getElementById('regFpBtn').style.display = 'block';
     }
-  } else {
-    // If WebAuthn not supported at all
-    fpBtn.style.display = 'none';
-    regBtn.style.display = 'none';
   }
 }
 
-// STEP 1: Register Fingerprint (Create Passkey)
+// Fixed Registration: Use navigator.credentials.create()
 async function registerFingerprint() {
   try {
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
 
-    const publicKeyCredentialCreationOptions = {
-      challenge: challenge,
-      rp: { name: "Daily Cash Book" },
-      user: {
-        id: Uint8Array.from("user123", c => c.charCodeAt(0)),
-        name: "user@dailycash",
-        displayName: "Saini User"
-      },
-      pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-      authenticatorSelection: { userVerification: "required" },
-      timeout: 60000
+    const options = {
+      publicKey: {
+        challenge: challenge,
+        rp: { name: "Daily Cash Book" },
+        user: {
+          id: Uint8Array.from("user" + Date.now(), c => c.charCodeAt(0)),
+          name: "user@dailycash",
+          displayName: "Cash Book User"
+        },
+        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+        timeout: 60000,
+        authenticatorSelection: { userVerification: "required" }
+      }
     };
 
-    const credential = await navigator.credentials.create({
-      publicKey: publicKeyCredentialCreationOptions
-    });
-
+    const credential = await navigator.credentials.create(options);
     if (credential) {
-      // Save a dummy ID flag to show we are registered
-      localStorage.setItem("biometric_credential_id", credential.id);
-      alert("फिंगरप्रिंट सफलता पूर्वक रजिस्टर हो गया!");
-      updateSecurityUI();
+      // ✅ FIX: Store rawId as Base64 string
+      const rawIdBase64 = bufferToBase64(credential.rawId);
+      localStorage.setItem("fp_raw_id", rawIdBase64);
+      
+      alert("फिंगरप्रिंट रजिस्टर हो गया है!");
+      checkFpRegistration();
       unlockApp();
     }
   } catch (err) {
     console.error("Registration error:", err);
-    alert("रजिस्ट्रेशन विफल! कृपया सुरक्षित PIN का उपयोग करें।");
+    alert("रजिस्ट्रेशन विफल: " + err.message);
   }
 }
 
-// STEP 2: Unlock with Fingerprint (Get Assertion)
+// Fixed Unlock: Use navigator.credentials.get() with allowCredentials
 async function triggerFingerprint() {
-  const credId = localStorage.getItem("biometric_credential_id");
-  if (!credId) return;
-
   try {
+    const rawIdBase64 = localStorage.getItem("fp_raw_id");
+    if (!rawIdBase64) return;
+
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
 
-    const publicKeyCredentialRequestOptions = {
-      challenge: challenge,
-      allowCredentials: [{
-        id: Uint8Array.from(atob(credId.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)),
-        type: 'public-key'
-      }],
-      userVerification: "required",
-      timeout: 60000
+    // ✅ FIX: Convert stored Base64 back to Buffer
+    const rawIdBuffer = base64ToBuffer(rawIdBase64);
+
+    const options = {
+      publicKey: {
+        challenge: challenge,
+        timeout: 60000,
+        userVerification: "required",
+        allowCredentials: [{
+          id: rawIdBuffer,
+          type: "public-key"
+        }]
+      }
     };
 
-    // Note: Most modern browsers/phones handle the specific credential lookup internally
-    // If the above manual ID fails due to encoding, we use a generic request:
-    const assertion = await navigator.credentials.get({
-      publicKey: { challenge: challenge, userVerification: "required" }
-    });
-
+    const assertion = await navigator.credentials.get(options);
     if (assertion) {
       unlockApp();
     }
   } catch (err) {
-    console.log("Auth error:", err);
-    // Only alert if manually triggered via button
-    if (event && event.type === 'click') {
-        alert("फिंगरप्रिंट नहीं मिला या रद्द कर दिया गया।");
+    console.error("WebAuthn Auth Error:", err);
+    // Explicit fail message only on manual click
+    if(event && (event.type === 'click' || event.type === 'touchstart')) {
+        alert("Fingerprint authentication failed.");
     }
   }
 }
@@ -731,7 +730,7 @@ function verifyPin() {
   if (input === stored) {
     unlockApp();
   } else {
-    alert("गलत PIN! कृपया पुनः प्रयास करें।");
+    alert("गलत PIN!");
     document.getElementById("pinInput").value = "";
   }
 }
@@ -743,21 +742,19 @@ function unlockApp() {
 
 function logout() {
   document.getElementById("lockScreen").style.display = "flex";
-  if (localStorage.getItem("biometric_credential_id")) {
+  if (localStorage.getItem("fp_raw_id")) {
     triggerFingerprint();
   }
 }
 
 function forgotPin() {
-  const master = prompt("मास्टर पासवर्ड दर्ज करें (Enter Master Password):");
+  const master = prompt("मास्टर पासवर्ड:");
   if (master === MASTER_PASSWORD) {
-    const newPin = prompt("नया PIN सेट करें (Set New PIN):");
+    const newPin = prompt("नया PIN:");
     if (newPin) {
       localStorage.setItem("app_pin", newPin);
-      alert("PIN सफलतापूर्वक बदल दिया गया है।");
+      alert("PIN बदल दिया गया है।");
     }
-  } else {
-    alert("गलत मास्टर पासवर्ड!");
   }
 }
 
@@ -793,17 +790,12 @@ function openCustomPreview() {
 
   document.getElementById("previewContent").innerHTML = html;
   document.getElementById("printPreviewModal").style.display = "flex";
-// ✅ ZOOM APPLY (CORRECT PLACE)
 document.documentElement.style.setProperty("--p-zoom", 1);
 document.getElementById("zoomRange").value = 1;
 applyZoom();
 document.getElementById("previewContent").style.transform = "scale(0.95)";
 }
 
-
-function closePreview(){
-  document.getElementById("printPreviewModal").style.display = "none";
-}
 </script>
 <div id="printPreviewModal"
      style="display:none;
@@ -814,18 +806,10 @@ function closePreview(){
             overflow:auto;">
   <div style="background:white;padding:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
   <button onclick="closePreview()">❌ Close</button>
-
   <div style="display:flex;align-items:center;gap:6px;">
     <b>Zoom</b>
-    <input type="range"
-           id="zoomRange"
-           min="0.5"
-           max="2"
-           step="0.05"
-           value="1"
-           oninput="applyZoom()">
+    <input type="range" id="zoomRange" min="0.5" max="2" step="0.05" value="1" oninput="applyZoom()">
   </div>
-
   <button onclick="window.print()">🖨️ Print</button>
 </div>
   <div id="previewContent" style="background:white;padding:10px;"></div>
