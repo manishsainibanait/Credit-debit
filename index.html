@@ -267,6 +267,10 @@ function applyZoom(){
   background: #2196f3;
   margin-top: 20px;
 }
+.reg-fp-btn {
+  background: #ff9800;
+  margin-top: 20px;
+}
 .forgot-btn {
   background: transparent;
   text-decoration: underline;
@@ -299,9 +303,15 @@ function applyZoom(){
   <h2 id="lockStatus">सुरक्षित प्रवेश</h2>
   <input type="password" id="pinInput" class="lock-input" placeholder="PIN दर्ज करें" maxlength="6" inputmode="numeric">
   <button class="lock-btn" onclick="verifyPin()">अनब्लॉक करें</button>
-  <button class="lock-btn fp-btn" id="fpBtn" onclick="triggerFingerprint()">
+  
+  <button class="lock-btn reg-fp-btn" id="regFpBtn" onclick="registerFingerprint()" style="display:none;">
+    <i class="fas fa-user-plus"></i> फिंगरप्रिंट रजिस्टर करें
+  </button>
+
+  <button class="lock-btn fp-btn" id="fpBtn" onclick="triggerFingerprint()" style="display:none;">
     <i class="fas fa-fingerprint"></i> फिंगरप्रिंट से खोलें
   </button>
+  
   <button class="forgot-btn" onclick="forgotPin()">PIN भूल गए?</button>
 </div>
 
@@ -613,27 +623,76 @@ async function initSecurity() {
     }
   }
   
-  // Check if WebAuthn is supported
-  if (window.PublicKeyCredential) {
-    // Initial attempt on load
+  checkFpRegistration();
+
+  // Auto trigger fingerprint if registered
+  if (localStorage.getItem("fp_credential_id")) {
     triggerFingerprint();
-  } else {
-    document.getElementById('fpBtn').style.display = 'none';
   }
 }
 
-// Fixed Fingerprint Function using navigator.credentials.get
+function checkFpRegistration() {
+  const hasReg = localStorage.getItem("fp_credential_id");
+  const isSupported = !!window.PublicKeyCredential;
+  
+  if (isSupported) {
+    if (hasReg) {
+      document.getElementById('fpBtn').style.display = 'block';
+      document.getElementById('regFpBtn').style.display = 'none';
+    } else {
+      document.getElementById('fpBtn').style.display = 'none';
+      document.getElementById('regFpBtn').style.display = 'block';
+    }
+  } else {
+    document.getElementById('fpBtn').style.display = 'none';
+    document.getElementById('regFpBtn').style.display = 'none';
+  }
+}
+
+// 1. New Feature: Register Fingerprint
+async function registerFingerprint() {
+  try {
+    const challenge = new Uint8Array(32);
+    window.crypto.getRandomValues(challenge);
+
+    const options = {
+      publicKey: {
+        challenge: challenge,
+        rp: { name: "Daily Cash Book" },
+        user: {
+          id: Uint8Array.from("user" + Date.now(), c => c.charCodeAt(0)),
+          name: "user@dailycash",
+          displayName: "Cash Book User"
+        },
+        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+        timeout: 60000,
+        authenticatorSelection: { userVerification: "required" }
+      }
+    };
+
+    const credential = await navigator.credentials.create(options);
+    if (credential) {
+      // Save ID to localStorage as a flag
+      localStorage.setItem("fp_credential_id", btoa(String.fromCharCode(...new Uint8Array(credential.rawId))));
+      alert("फिंगरप्रिंट सफलतापूर्वक रजिस्टर हो गया है!");
+      checkFpRegistration();
+      unlockApp();
+    }
+  } catch (err) {
+    console.error("Registration error:", err);
+    alert("रजिस्ट्रेशन विफल: " + err.message);
+  }
+}
+
+// 2. Updated Trigger Fingerprint
 async function triggerFingerprint() {
   try {
-    if (!window.PublicKeyCredential) {
-      alert("Biometric authentication is not supported on this device.");
-      return;
-    }
+    const credId = localStorage.getItem("fp_credential_id");
+    if (!credId) return;
 
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
 
-    // Using navigator.credentials.get for biometric unlocking
     const options = {
       publicKey: {
         challenge: challenge,
@@ -642,17 +701,14 @@ async function triggerFingerprint() {
       }
     };
 
-    const credential = await navigator.credentials.get(options);
-    if (credential) {
+    const assertion = await navigator.credentials.get(options);
+    if (assertion) {
       unlockApp();
-    } else {
-      alert("Fingerprint authentication failed");
     }
   } catch (err) {
-    console.log("WebAuthn error:", err);
-    // Silent fail for auto-trigger, alert only for manual button click if needed
+    console.log("WebAuthn Auth Error:", err);
     if(event && event.type === 'click') {
-        alert("Fingerprint authentication failed");
+        alert("फिंगरप्रिंट मिलान नहीं हुआ।");
     }
   }
 }
@@ -675,7 +731,9 @@ function unlockApp() {
 
 function logout() {
   document.getElementById("lockScreen").style.display = "flex";
-  triggerFingerprint();
+  if (localStorage.getItem("fp_credential_id")) {
+    triggerFingerprint();
+  }
 }
 
 function forgotPin() {
