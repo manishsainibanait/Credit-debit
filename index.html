@@ -305,11 +305,11 @@ function applyZoom(){
   <button class="lock-btn" onclick="verifyPin()">अनब्लॉक करें</button>
   
   <button class="lock-btn reg-fp-btn" id="regFpBtn" onclick="registerFingerprint()" style="display:none;">
-    <i class="fas fa-user-plus"></i> फिंगरप्रिंट रजिस्टर करें
+    <i class="fas fa-user-plus"></i> फिंगरप्रिंट रजिस्टर करें (Register)
   </button>
 
   <button class="lock-btn fp-btn" id="fpBtn" onclick="triggerFingerprint()" style="display:none;">
-    <i class="fas fa-fingerprint"></i> फिंगरप्रिंट से खोलें
+    <i class="fas fa-fingerprint"></i> फिंगरप्रिंट से खोलें (Unlock)
   </button>
   
   <button class="forgot-btn" onclick="forgotPin()">PIN भूल गए?</button>
@@ -623,92 +623,104 @@ async function initSecurity() {
     }
   }
   
-  checkFpRegistration();
+  // Update visibility of UI buttons
+  updateSecurityUI();
 
-  // Auto trigger fingerprint if registered
-  if (localStorage.getItem("fp_credential_id")) {
-    triggerFingerprint();
+  // Auto trigger fingerprint check if credential exists
+  if (localStorage.getItem("biometric_credential_id")) {
+    setTimeout(triggerFingerprint, 500);
   }
 }
 
-function checkFpRegistration() {
-  const hasReg = localStorage.getItem("fp_credential_id");
-  const isSupported = !!window.PublicKeyCredential;
-  
-  if (isSupported) {
-    if (hasReg) {
-      document.getElementById('fpBtn').style.display = 'block';
-      document.getElementById('regFpBtn').style.display = 'none';
+function updateSecurityUI() {
+  const isRegistered = localStorage.getItem("biometric_credential_id");
+  const fpBtn = document.getElementById('fpBtn');
+  const regBtn = document.getElementById('regFpBtn');
+
+  if (window.PublicKeyCredential) {
+    if (isRegistered) {
+      fpBtn.style.display = 'block';
+      regBtn.style.display = 'none';
     } else {
-      document.getElementById('fpBtn').style.display = 'none';
-      document.getElementById('regFpBtn').style.display = 'block';
+      fpBtn.style.display = 'none';
+      regBtn.style.display = 'block';
     }
   } else {
-    document.getElementById('fpBtn').style.display = 'none';
-    document.getElementById('regFpBtn').style.display = 'none';
+    // If WebAuthn not supported at all
+    fpBtn.style.display = 'none';
+    regBtn.style.display = 'none';
   }
 }
 
-// 1. New Feature: Register Fingerprint
+// STEP 1: Register Fingerprint (Create Passkey)
 async function registerFingerprint() {
   try {
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
 
-    const options = {
-      publicKey: {
-        challenge: challenge,
-        rp: { name: "Daily Cash Book" },
-        user: {
-          id: Uint8Array.from("user" + Date.now(), c => c.charCodeAt(0)),
-          name: "user@dailycash",
-          displayName: "Cash Book User"
-        },
-        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-        timeout: 60000,
-        authenticatorSelection: { userVerification: "required" }
-      }
+    const publicKeyCredentialCreationOptions = {
+      challenge: challenge,
+      rp: { name: "Daily Cash Book" },
+      user: {
+        id: Uint8Array.from("user123", c => c.charCodeAt(0)),
+        name: "user@dailycash",
+        displayName: "Saini User"
+      },
+      pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+      authenticatorSelection: { userVerification: "required" },
+      timeout: 60000
     };
 
-    const credential = await navigator.credentials.create(options);
+    const credential = await navigator.credentials.create({
+      publicKey: publicKeyCredentialCreationOptions
+    });
+
     if (credential) {
-      // Save ID to localStorage as a flag
-      localStorage.setItem("fp_credential_id", btoa(String.fromCharCode(...new Uint8Array(credential.rawId))));
-      alert("फिंगरप्रिंट सफलतापूर्वक रजिस्टर हो गया है!");
-      checkFpRegistration();
+      // Save a dummy ID flag to show we are registered
+      localStorage.setItem("biometric_credential_id", credential.id);
+      alert("फिंगरप्रिंट सफलता पूर्वक रजिस्टर हो गया!");
+      updateSecurityUI();
       unlockApp();
     }
   } catch (err) {
     console.error("Registration error:", err);
-    alert("रजिस्ट्रेशन विफल: " + err.message);
+    alert("रजिस्ट्रेशन विफल! कृपया सुरक्षित PIN का उपयोग करें।");
   }
 }
 
-// 2. Updated Trigger Fingerprint
+// STEP 2: Unlock with Fingerprint (Get Assertion)
 async function triggerFingerprint() {
-  try {
-    const credId = localStorage.getItem("fp_credential_id");
-    if (!credId) return;
+  const credId = localStorage.getItem("biometric_credential_id");
+  if (!credId) return;
 
+  try {
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
 
-    const options = {
-      publicKey: {
-        challenge: challenge,
-        timeout: 60000,
-        userVerification: "required"
-      }
+    const publicKeyCredentialRequestOptions = {
+      challenge: challenge,
+      allowCredentials: [{
+        id: Uint8Array.from(atob(credId.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)),
+        type: 'public-key'
+      }],
+      userVerification: "required",
+      timeout: 60000
     };
 
-    const assertion = await navigator.credentials.get(options);
+    // Note: Most modern browsers/phones handle the specific credential lookup internally
+    // If the above manual ID fails due to encoding, we use a generic request:
+    const assertion = await navigator.credentials.get({
+      publicKey: { challenge: challenge, userVerification: "required" }
+    });
+
     if (assertion) {
       unlockApp();
     }
   } catch (err) {
-    console.log("WebAuthn Auth Error:", err);
-    if(event && event.type === 'click') {
-        alert("फिंगरप्रिंट मिलान नहीं हुआ।");
+    console.log("Auth error:", err);
+    // Only alert if manually triggered via button
+    if (event && event.type === 'click') {
+        alert("फिंगरप्रिंट नहीं मिला या रद्द कर दिया गया।");
     }
   }
 }
@@ -731,7 +743,7 @@ function unlockApp() {
 
 function logout() {
   document.getElementById("lockScreen").style.display = "flex";
-  if (localStorage.getItem("fp_credential_id")) {
+  if (localStorage.getItem("biometric_credential_id")) {
     triggerFingerprint();
   }
 }
