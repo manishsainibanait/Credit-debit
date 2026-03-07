@@ -231,7 +231,7 @@ margin:5mm;
   }
 </style>
 </head>
-<body onload="initSecurity()">
+<body>
 
 <div id="lockScreen">
   <div class="login-title" style="font-size: 32px; font-weight: 800; margin-bottom: 10px;">DAILY CASH</div>
@@ -598,12 +598,20 @@ const base64ToBuffer = (base64) => Uint8Array.from(atob(base64), c => c.charCode
 async function initSecurity() {
   if (!localStorage.getItem("app_pin")) {
     let initialPin = prompt("नया सुरक्षा PIN सेट करें:", "1234");
-    if (initialPin) { localStorage.setItem("app_pin", initialPin); }
+    if (initialPin) {
+      localStorage.setItem("app_pin", initialPin);
+    }
   }
-  checkFpRegistration();
-  if (localStorage.getItem("fp_raw_id")) { setTimeout(triggerFingerprint, 500); }
-}
 
+  checkFpRegistration();
+
+  // App open होते ही fingerprint try करेगा
+  if (localStorage.getItem("fp_raw_id")) {
+    setTimeout(() => {
+      triggerFingerprint();
+    }, 500);
+  }
+}
 function checkFpRegistration() {
   const hasReg = localStorage.getItem("fp_raw_id");
   const isSupported = !!window.PublicKeyCredential;
@@ -704,6 +712,7 @@ function openCustomPreview() {
 }
 window.onload = function(){
 updateMainBalances();
+initSecurity();
 }
 </script>
 
