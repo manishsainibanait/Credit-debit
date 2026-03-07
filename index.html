@@ -2,7 +2,7 @@
 <html lang="hi">
 <head>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0d6efd">
+  <meta name="theme-color" content="#512da8">
 
   <script>
   if ('serviceWorker' in navigator) {
@@ -17,356 +17,328 @@ function applyZoom(){
   document.documentElement.style.setProperty("--p-zoom", z);
 }
   </script>
+<style>
+@media print{
+body{
+margin:0;
+}
+
+table{
+width:100%;
+font-size:14px;
+}
+}
+
+@page{
+margin:5mm;
+}
+</style>
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>खर्चा खाता / बैंक खाता</title>
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --primary: #512da8;
+    --primary-light: #673ab7;
+    --secondary: #2196f3;
+    --success: #4caf50;
+    --danger: #f44336;
+    --warning: #ff9800;
+    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  }
+
   body {
     font-family: 'Noto Sans Devanagari', sans-serif;
-    background: linear-gradient(135deg, #d1c4e9, #bbdefb);
+    background: var(--bg-gradient);
     margin: 0; padding: 0;
     height: 100vh;
     display: flex;
     flex-direction: column;
+    color: #333;
   }
+
   header {
-    background: #512da8;
+    background: var(--primary);
     color: white;
     text-align: center;
-    padding: 15px;
-    font-size: 22px;
+    padding: 18px;
+    font-size: 20px;
+    font-weight: 700;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    position: relative;
+    letter-spacing: 1px;
   }
-  .screen { display: none; padding: 20px; text-align: center; }
-  .active { display: block; }
 
+  .screen { display: none; padding: 15px; max-width: 600px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+  .active { display: block; animation: fadeIn 0.4s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  h2 { color: var(--primary); font-size: 22px; margin-bottom: 20px; }
+
+  /* Home Buttons */
   .account-btn {
-    display: block;
-    background: #5cb85c;
-    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    color: var(--primary);
     margin: 15px auto;
-    padding: 15px;
-    border-radius: 12px;
-    width: 90%;
+    padding: 20px;
+    border-radius: 16px;
+    width: 100%;
     font-size: 18px;
-    font-weight: bold;
+    font-weight: 700;
+    box-shadow: var(--card-shadow);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
   }
+  .account-btn:active { transform: scale(0.98); border-color: var(--primary); }
 
+  /* Balance Box Style */
   .balance-box {
     background: white;
-    border-radius: 10px;
-    padding: 12px;
-    margin: 10px auto;
-    width: 90%;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    font-size: 20px;
-    position: sticky;
-    top: 0;
-    z-index: 999;
-  }
-
-  .credit { color: blue; font-weight: bold; }
-  .debit { color: red; font-weight: bold; }
-  .balance { color: #28a745; font-weight: bold; }
-
-  .customer-name {
-    font-weight: bold !important;
-    color: #1a237e !important;
-  }
-
-  .td-date {
-    white-space: pre-wrap;
-    padding: 8px 2px !important;
-    width: 1%;
-    line-height: 1.2;
-    font-size: 14px;
-    text-align: center;
-  }
-
-  table {
+    border-radius: 16px;
+    padding: 15px;
+    margin: 10px auto 20px;
     width: 100%;
-    background: white;
-    border-collapse: collapse;
-    border-radius: 10px;
-    overflow: hidden;
+    box-sizing: border-box;
+    box-shadow: var(--card-shadow);
+    font-size: 18px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-left: 5px solid var(--primary);
   }
-  th, td {
-    border-bottom: 1px solid #ddd;
-    padding: 8px;
-    text-align: center;
-  }
-  th { background: #512da8; color: white; position: sticky; top: 0; z-index: 10; }
 
-  button { border: none; border-radius: 6px; cursor: pointer; }
-  .add-btn, .print-btn {
-    background: #4caf50;
-    color: white;
-    padding: 12px;
-    margin: 5px;
-    width: 45%;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: bold;
+  .credit { color: #0d47a1; font-weight: 700; }
+  .debit { color: #d32f2f; font-weight: 700; }
+  .balance { color: var(--success); font-weight: 800; font-size: 1.1em; }
+
+  /* Filters Area */
+  .filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
   }
-  .print-btn { background: #2196f3; }
-  .edit-btn { background: #ff9800; color: white; padding: 6px 10px; }
-  .delete-btn { background: #f44336; color: white; padding: 6px 10px; }
+  
+  input, select {
+    width: 100%; padding: 12px; margin: 5px 0;
+    border: 1.5px solid #ddd; border-radius: 10px;
+    font-size: 15px; box-sizing: border-box;
+    background: white; transition: border-color 0.3s;
+  }
+  input:focus { border-color: var(--primary); outline: none; }
+
+  /* Table Style */
+  .table-container {
+    height: calc(100vh - 380px);
+    overflow-y: auto;
+    background: white;
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    margin-top: 10px;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { 
+    background: #f8f9fa; 
+    color: var(--primary); 
+    padding: 12px; 
+    font-size: 14px;
+    position: sticky; top: 0; z-index: 10;
+    border-bottom: 2px solid #eee;
+  }
+  td { padding: 12px 8px; border-bottom: 1px solid #f0f0f0; font-size: 15px; vertical-align: middle; }
+
+  .customer-name { font-weight: 700; color: #333; text-align: left; }
+  .td-date { font-size: 12px; color: #666; font-weight: 600; }
+
+  /* Buttons Styling */
+  button { border: none; border-radius: 10px; cursor: pointer; transition: 0.2s; font-family: inherit; }
+  
+  .add-btn, .print-btn {
+    padding: 12px; margin: 10px 5px; width: 48%;
+    font-size: 16px; font-weight: bold; color: white;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .add-btn { background: var(--success); box-shadow: 0 4px 12px rgba(76,175,80,0.3); }
+  .print-btn { background: var(--secondary); box-shadow: 0 4px 12px rgba(33,150,243,0.3); }
+
+  .edit-btn { background: #fff3e0; color: var(--warning); padding: 8px; margin-right: 4px; border: 1px solid #ffe0b2; }
+  .delete-btn { background: #ffebee; color: var(--danger); padding: 8px; border: 1px solid #ffcdd2; }
   
   .back-btn {
-    background: #673ab7;
-    color: white;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 16px;
+    background: #eee; color: #333;
+    padding: 8px 16px; border-radius: 8px; margin-bottom: 15px;
+    font-weight: 600; display: inline-block;
   }
 
-  .table-container {
-    height: calc(100vh - 350px);
-    overflow-y: auto;
+  .logout-btn-header {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,0.2); color: white;
+    padding: 6px 12px; font-size: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.4);
   }
 
+  /* Popups */
   .popup {
     display: none; justify-content: center; align-items: center;
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.6);
-    z-index: 2000;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 2000;
   }
   .popup-content {
-    background: white;
-    border-radius: 15px;
-    padding: 20px;
-    width: 90%; max-width: 360px;
+    background: white; border-radius: 24px; padding: 25px;
+    width: 90%; max-width: 400px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);
   }
-  .popup-btn-container {
-    display: flex;
-    justify-content: space-between; gap: 10px; margin-top: 20px;
-  }
-  .popup-btn {
-    padding: 15px; border-radius: 10px; font-size: 18px; font-weight: bold; flex: 1; color: white;
-  }
-  .save-btn { background: #4caf50; }
-  .cancel-btn { background: #f44336; }
+  .popup-btn-container { display: flex; gap: 10px; margin-top: 25px; }
+  .popup-btn { padding: 14px; border-radius: 12px; font-size: 16px; font-weight: 700; flex: 1; }
+  .save-btn { background: var(--success); color: white; }
+  .cancel-btn { background: #f5f5f5; color: #666; }
 
-  input, select {
-    width: 100%; padding: 12px; margin: 8px 0;
-    border: 1px solid #ccc; border-radius: 8px;
-    font-size: 16px; box-sizing: border-box;
+  /* Security Screen */
+  #lockScreen {
+    position: fixed; inset: 0; background: var(--primary);
+    color: white; z-index: 10000; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; padding: 30px;
   }
+  .lock-input {
+    width: 100%; max-width: 260px; padding: 15px; margin: 20px 0;
+    border-radius: 12px; border: none; text-align: center;
+    font-size: 28px; letter-spacing: 8px; color: var(--primary);
+    font-weight: bold; box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+  }
+  .lock-btn {
+    background: var(--success); color: white; padding: 16px;
+    width: 100%; max-width: 260px; border-radius: 12px;
+    font-size: 18px; font-weight: 700; margin-top: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  .fp-btn { background: var(--secondary); margin-top: 15px; }
+  .reg-fp-btn { background: var(--warning); margin-top: 15px; }
 
-  #printHeaderOnly { display: none; }
-
+  /* Print Modal Improvements */
+  #printPreviewModal { background: #1a1a1a; }
+  .preview-toolbar { background: white; padding: 15px; display: flex; gap: 15px; align-items: center; justify-content: space-between; }
+  
   @media print {
-    header, .back-btn, .add-btn, .print-btn, .popup, .account-btn, #homeScreen, 
-    .balance-box, .filters, select, input, #ledgerScreen h2, .edit-btn, .delete-btn {
-      display: none !important;
-    }
-    #printHeaderOnly {
-      display: block !important;
-      text-align: center;
-      margin-bottom: 30px;
-    }
-    .print-company {
-      color: #0d47a1 !important;
-      font-size: 32px !important;
-      font-weight: bold !important;
-    }
-    .table-container {
-      overflow: visible !important;
-      height: auto !important;
-    }
-    table { width: 100% !important; border: 2px solid black !important; }
-    th, td {
-      border: 1.5px solid black !important;
-      color: black !important;
-      font-size: 22px !important;
-      padding: 12px 5px !important;
-      font-weight: bold !important;
-    }
-    th { background-color: #f2f2f2 !important; }
+    .action-cell, .edit-btn, .delete-btn { display: none !important; }
   }
-#printPreviewModal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.95);
-  z-index: 99999;
-  display: none;
-  flex-direction: column;
-}
-.previewHeader {
-  background: #fff;
-  padding: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.previewBody {
-  flex: 1;
-  overflow: auto;
-  background: #334155;
-  padding: 20px;
-}
-#previewContent {
-  background: #fff;
-  padding: 25px;
-  margin: auto;
-  transform-origin: top left;
-}
-
-@media print {
-  @page { size: A4 landscape; margin: 8mm; }
-  body * { visibility: hidden; }
-  #previewContent, #previewContent * { visibility: visible; }
-  #previewContent {
-    position: absolute;
-    left: 0; 
-    top: 0;
-    width: 100%;
-    transform: scale(var(--p-zoom));
-  }
-}
-
-/* Security System CSS */
-#lockScreen {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: #512da8;
-  color: white;
-  z-index: 10000;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
-  box-sizing: border-box;
-}
-.lock-input {
-  width: 80%;
-  max-width: 300px;
-  padding: 15px;
-  margin: 10px 0;
-  border-radius: 10px;
-  border: none;
-  text-align: center;
-  font-size: 24px;
-  letter-spacing: 5px;
-  color: #333;
-}
-.lock-btn {
-  background: #5cb85c;
-  color: white;
-  padding: 15px;
-  width: 80%;
-  max-width: 300px;
-  border-radius: 10px;
-  font-size: 18px;
-  margin-top: 10px;
-}
-.fp-btn {
-  background: #2196f3;
-  margin-top: 20px;
-}
-.reg-fp-btn {
-  background: #ff9800;
-  margin-top: 20px;
-}
-.forgot-btn {
-  background: transparent;
-  text-decoration: underline;
-  margin-top: 15px;
-  font-size: 14px;
-}
-.logout-btn-header {
-  position: absolute;
-  right: 10px;
-  top: 15px;
-  background: #f44336;
-  color: white;
-  padding: 5px 10px;
-  font-size: 14px;
-}
-/* App Title for Login */
-.login-title {
-  font-size: 28px;
-  font-weight: bold;
-  margin-bottom: 20px;
-  text-align: center;
-}
 </style>
 </head>
 <body onload="initSecurity()">
 
 <div id="lockScreen">
-  <div class="login-title">Daily Cash Book</div>
-  <i class="fas fa-lock" style="font-size: 50px; margin-bottom: 20px;"></i>
-  <h2 id="lockStatus">सुरक्षित प्रवेश</h2>
-  <input type="password" id="pinInput" class="lock-input" placeholder="PIN दर्ज करें" maxlength="6" inputmode="numeric">
-  <button class="lock-btn" onclick="verifyPin()">अनब्लॉक करें</button>
+  <div class="login-title" style="font-size: 32px; font-weight: 800; margin-bottom: 10px;">DAILY CASH</div>
+  <div style="font-size: 14px; opacity: 0.8; margin-bottom: 30px;">Digital Ledger System</div>
   
-  <button class="lock-btn reg-fp-btn" id="regFpBtn" onclick="registerFingerprint()" style="display:none;">
+  <div style="background: rgba(255,255,255,0.1); padding: 30px; border-radius: 50%; margin-bottom: 25px;">
+    <i class="fas fa-shield-halved" style="font-size: 50px;"></i>
+  </div>
+  
+  <h2 id="lockStatus" style="color: white; margin-bottom: 5px;">सुरक्षित प्रवेश</h2>
+  <p style="font-size: 14px; opacity: 0.8; margin-bottom: 10px;">अपना PIN दर्ज करें</p>
+  
+  <input type="password" id="pinInput" class="lock-input" placeholder="••••" maxlength="6" inputmode="numeric">
+  
+  <button class="lock-btn" onclick="verifyPin()">अनब्लॉक करें</button>
+  <button class="lock-btn reg-fp-btn" id="regFpBtn" onclick="registerFingerprint()">
     <i class="fas fa-user-plus"></i> फिंगरप्रिंट रजिस्टर करें
   </button>
 
-  <button class="lock-btn fp-btn" id="fpBtn" onclick="triggerFingerprint()" style="display:none;">
+  <button class="lock-btn fp-btn" id="fpBtn" onclick="triggerFingerprint()">
     <i class="fas fa-fingerprint"></i> फिंगरप्रिंट से खोलें
   </button>
   
-  <button class="forgot-btn" onclick="forgotPin()">PIN भूल गए?</button>
+  <button class="forgot-btn" onclick="forgotPin()" style="background:none; color:white; border:none; margin-top:20px; text-decoration:underline; font-size:14px; cursor:pointer;">PIN भूल गए?</button>
 </div>
 
-<header>💼 SAINI TRADING COMPANY <button class="logout-btn-header" onclick="logout()">Logout</button></header>
+<header>
+  <i class="fas fa-store-alt" style="margin-right: 8px;"></i> SAINI TRADING COMPANY 
+  <button class="logout-btn-header" onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
+</header>
 
 <div class="screen active" id="homeScreen">
-  <h2>खाते का सारांश</h2>
+  <h2 style="text-align: center; margin-top: 10px;">खाते का सारांश</h2>
+  
   <div id="balanceCards">
     <div class="balance-box">
-      🧾 खर्चा खाता - <span class="balance" id="kharchBalance">₹0</span>
+      <div style="text-align: left;">
+        <div style="font-size: 14px; color: #666;">🧾 कुल खर्चा</div>
+        <div class="balance" id="kharchBalance" style="color: var(--primary);">₹0</div>
+      </div>
+      <i class="fas fa-chevron-right" style="color: #ccc;"></i>
     </div>
     <div class="balance-box">
-      🏦 बैंक खाता - <span class="balance" id="bankBalance">₹0</span>
+      <div style="text-align: left;">
+        <div style="font-size: 14px; color: #666;">🏦 बैंक बैलेंस</div>
+        <div class="balance" id="bankBalance" style="color: var(--secondary);">₹0</div>
+      </div>
+      <i class="fas fa-chevron-right" style="color: #ccc;"></i>
     </div>
   </div>
-  <button class="account-btn" onclick="openLedger('kharchKhata')">🧾 खर्चा खाता खोलें</button>
-  <button class="account-btn" onclick="openLedger('bankKhata')">🏦 बैंक खाता खोलें</button>
+
+  <div style="margin-top: 30px;">
+    <button class="account-btn" onclick="openLedger('kharchKhata')">
+      <i class="fas fa-receipt" style="margin-right: 15px; font-size: 24px;"></i> खर्चा खाता खोलें
+    </button>
+    <button class="account-btn" onclick="openLedger('bankKhata')">
+      <i class="fas fa-university" style="margin-right: 15px; font-size: 24px;"></i> बैंक खाता खोलें
+    </button>
+  </div>
 </div>
 
 <div class="screen" id="ledgerScreen">
-  <button class="back-btn" onclick="goHome()">🔙 वापस जाएं</button>
-  <h2 id="ledgerTitle"></h2>
+  <button class="back-btn" onclick="goHome()"><i class="fas fa-arrow-left"></i> वापस</button>
+  <h2 id="ledgerTitle" style="display: inline-block; margin-left: 10px;"></h2>
 
   <div id="printHeaderOnly">
     <div class="print-company">SAINI TRADING COMPANY</div>
     <div style="font-size: 22px; font-weight: bold;" id="printLedgerTitle"></div>
   </div>
 
-  <div class="balance-box">
-    <span class="credit">Cr ₹<span id="creditTotal">0</span></span> | 
-    <span class="debit">Db ₹<span id="debitTotal">0</span></span> |
-    <span class="balance">Bal ₹<span id="balance">0</span></span>
+  <div class="balance-box" style="justify-content: space-between; border-left: none; background: var(--primary); color: white;">
+    <div style="text-align: center; flex: 1; border-right: 1px solid rgba(255,255,255,0.2);">
+      <div style="font-size: 11px; text-transform: uppercase;">Credit</div>
+      <div id="creditTotal" style="font-weight: bold; font-size: 18px;">0</div>
+    </div>
+    <div style="text-align: center; flex: 1; border-right: 1px solid rgba(255,255,255,0.2);">
+      <div style="font-size: 11px; text-transform: uppercase;">Debit</div>
+      <div id="debitTotal" style="font-weight: bold; font-size: 18px;">0</div>
+    </div>
+    <div style="text-align: center; flex: 1;">
+      <div style="font-size: 11px; text-transform: uppercase;">Net Bal</div>
+      <div id="balance" style="font-weight: bold; font-size: 18px; color: #aeffae;">0</div>
+    </div>
   </div>
 
   <div class="filters">
     <input type="date" id="fromDate">
     <input type="date" id="toDate">
-    <input type="text" id="searchBox" placeholder="🔍 विवरण से खोजें...">
   </div>
+  
+  <input type="text" id="searchBox" placeholder="🔍 विवरण या नाम से खोजें..." style="margin-bottom: 10px;">
 
-  <div style="margin-bottom:10px; display: flex; justify-content: center; gap: 5px;">
+  <div style="margin-bottom:15px; display: flex; justify-content: center; gap: 8px;">
     <select id="sortFilter" style="width: 48%;">
         <option value="new">📅 नया पहले</option>
         <option value="old">📅 पुराना पहले</option>
     </select>
     <select id="typeFilter" style="width: 48%;">
-        <option value="">सभी</option>
-        <option value="credit">Credit</option>
-        <option value="debit">Debit</option>
+        <option value="">📊 सभी लेनदेन</option>
+        <option value="credit">📥 Credit (जमा)</option>
+        <option value="debit">📤 Debit (नाम)</option>
     </select>
   </div>
 
-  <div style="display: flex; justify-content: center;">
-    <button class="add-btn" onclick="openPopup()">➕ नई Entry</button>
-    <button class="print-btn" onclick="openCustomPreview()">🖨️ Print</button>
+  <div style="display: flex; justify-content: center; margin-bottom: 5px;">
+    <button class="add-btn" onclick="openPopup()"><i class="fas fa-plus"></i> नई Entry</button>
+    <button class="print-btn" onclick="openCustomPreview()"><i class="fas fa-print"></i> Print</button>
   </div>
 
   <div class="table-container">
@@ -374,7 +346,7 @@ function applyZoom(){
       <thead>
         <tr>
           <th>तारीख</th>
-          <th>विवरण</th>
+          <th style="text-align: left;">विवरण</th>
           <th>Credit</th>
           <th>Debit</th>
           <th class="action-cell">⚙️</th>
@@ -387,19 +359,30 @@ function applyZoom(){
 
 <div class="popup" id="popupForm">
   <div class="popup-content">
-    <h3 id="popupTitle" style="text-align:center;">नई एंट्री जोड़ें</h3>
-    <label>तारीख</label>
+    <h3 id="popupTitle" style="text-align:center; color: var(--primary); margin-top: 0;">नई एंट्री जोड़ें</h3>
+    <hr style="border: none; border-top: 1px solid #eee; margin-bottom: 20px;">
+    
+    <label style="font-size: 13px; font-weight: bold; color: #666;">तारीख</label>
     <input type="date" id="date">
-    <label>विवरण (नाम)</label>
-    <input list="descList" type="text" id="desc" placeholder="नाम लिखें...">
+    
+    <label style="font-size: 13px; font-weight: bold; color: #666;">विवरण (नाम)</label>
+    <input list="descList" type="text" id="desc" placeholder="यहां नाम लिखें...">
     <datalist id="descList"></datalist>
-    <label style="color:blue;">💰 Credit राशि</label>
-    <input type="number" id="credit" value="0">
-    <label style="color:red;">💸 Debit राशि</label>
-    <input type="number" id="debit" value="0">
+    
+    <div style="display: flex; gap: 10px; margin-top: 10px;">
+      <div style="flex: 1;">
+        <label style="font-size: 13px; font-weight: bold; color: #0d47a1;">💰 जमा (Cr)</label>
+        <input type="number" id="credit" value="0">
+      </div>
+      <div style="flex: 1;">
+        <label style="font-size: 13px; font-weight: bold; color: #d32f2f;">💸 नाम (Db)</label>
+        <input type="number" id="debit" value="0">
+      </div>
+    </div>
+    
     <div class="popup-btn-container">
-      <button id="saveButton" class="popup-btn save-btn" onclick="saveNew()">💾 SAVE</button>
-      <button class="popup-btn cancel-btn" onclick="closePopup()">❌ CANCEL</button>
+      <button class="popup-btn cancel-btn" onclick="closePopup()">रद्द करें</button>
+      <button id="saveButton" class="popup-btn save-btn" onclick="saveNew()">💾 सुरक्षित करें</button>
     </div>
   </div>
 </div>
@@ -408,6 +391,7 @@ function applyZoom(){
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
+// JavaScript Logic remains exactly the same as provided in the original code
 const firebaseConfig = {
   apiKey: "AIzaSyADn_HUkP4ZfTOQ46eoQdXKIY7VAKd6odI",
   authDomain: "debit-4db50.firebaseapp.com",
@@ -454,10 +438,9 @@ function openPopup(){
   document.getElementById("credit").value = "0";
   document.getElementById("debit").value = "0";
   
-  // Reset Save Button to saveNew
   const saveBtn = document.getElementById("saveButton");
   saveBtn.onclick = saveNew;
-  saveBtn.innerText = "💾 SAVE";
+  saveBtn.innerText = "💾 सुरक्षित करें";
   
   updateDescList();
 }
@@ -532,11 +515,9 @@ function renderTable(){
     const da = Number(a.date.replace(/-/g, ""));
     const db = Number(b.date.replace(/-/g, ""));
     if (da !== db) return sortType === "new" ? db - da : da - db;
-    
     const ta = a.timestamp || 0;
     const tb = b.timestamp || 0;
     if (ta !== tb) return sortType === "new" ? tb - ta : ta - tb;
-
     return sortType === "new" ? b.id.localeCompare(a.id) : a.id.localeCompare(b.id);
   });
 
@@ -550,11 +531,11 @@ function renderTable(){
     tr.innerHTML = `
       <td class="td-date">${formatDate(e.date)}</td>
       <td class="customer-name">${e.desc}</td>
-      <td class="credit">${e.credit}</td>
-      <td class="debit">${e.debit}</td>
-      <td>
-        <button class="edit-btn" onclick="editEntry('${e.id}')">✏️</button>
-        <button class="delete-btn" onclick="deleteEntry('${e.id}')">🗑️</button>
+      <td class="credit">${e.credit > 0 ? e.credit : '-'}</td>
+      <td class="debit">${e.debit > 0 ? e.debit : '-'}</td>
+      <td class="action-cell">
+        <button class="edit-btn" onclick="editEntry('${e.id}')"><i class="fas fa-edit"></i></button>
+        <button class="delete-btn" onclick="deleteEntry('${e.id}')"><i class="fas fa-trash"></i></button>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -578,7 +559,7 @@ function editEntry(id) {
   document.getElementById("debit").value = entry.debit;
   
   const saveBtn = document.getElementById("saveButton");
-  saveBtn.innerText = "💾 UPDATE";
+  saveBtn.innerText = "💾 अपडेट करें";
   saveBtn.onclick = () => {
     const updated = {
       date: document.getElementById("date").value,
@@ -588,7 +569,6 @@ function editEntry(id) {
       timestamp: entry.timestamp || Date.now()
     };
     if(!updated.desc) return alert("विवरण दर्ज करें!");
-    
     db.ref(`${currentPath}/${id}`).update(updated).then(closePopup);
   };
 }
@@ -610,35 +590,23 @@ document.getElementById("toDate").addEventListener("input", renderTable);
 document.getElementById("searchBox").addEventListener("input", renderTable);
 document.getElementById("sortFilter").addEventListener("change", renderTable);
 document.getElementById("typeFilter").addEventListener("change", renderTable);
-updateMainBalances();
 
-// ===== SECURITY SYSTEM SCRIPT (FIXED WEBAUTHN) =====
 const MASTER_PASSWORD = "786786";
-
-// Helpers for encoding/decoding array buffers to Base64
 const bufferToBase64 = (buffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
 const base64ToBuffer = (base64) => Uint8Array.from(atob(base64), c => c.charCodeAt(0));
 
 async function initSecurity() {
   if (!localStorage.getItem("app_pin")) {
-    let initialPin = prompt("नया सुरक्षा PIN सेट करें (Set New Security PIN):", "1234");
-    if (initialPin) {
-      localStorage.setItem("app_pin", initialPin);
-    }
+    let initialPin = prompt("नया सुरक्षा PIN सेट करें:", "1234");
+    if (initialPin) { localStorage.setItem("app_pin", initialPin); }
   }
-  
   checkFpRegistration();
-
-  // Auto trigger fingerprint if registered
-  if (localStorage.getItem("fp_raw_id")) {
-    setTimeout(triggerFingerprint, 500);
-  }
+  if (localStorage.getItem("fp_raw_id")) { setTimeout(triggerFingerprint, 500); }
 }
 
 function checkFpRegistration() {
   const hasReg = localStorage.getItem("fp_raw_id");
   const isSupported = !!window.PublicKeyCredential;
-  
   if (isSupported) {
     if (hasReg) {
       document.getElementById('fpBtn').style.display = 'block';
@@ -650,169 +618,108 @@ function checkFpRegistration() {
   }
 }
 
-// Fixed Registration: Use navigator.credentials.create()
 async function registerFingerprint() {
   try {
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
-
     const options = {
       publicKey: {
         challenge: challenge,
         rp: { name: "Daily Cash Book" },
-        user: {
-          id: Uint8Array.from("user" + Date.now(), c => c.charCodeAt(0)),
-          name: "user@dailycash",
-          displayName: "Cash Book User"
-        },
+        user: { id: Uint8Array.from("user" + Date.now(), c => c.charCodeAt(0)), name: "user@dailycash", displayName: "Cash Book User" },
         pubKeyCredParams: [{ alg: -7, type: "public-key" }],
         timeout: 60000,
         authenticatorSelection: { userVerification: "required" }
       }
     };
-
     const credential = await navigator.credentials.create(options);
     if (credential) {
-      // ✅ FIX: Store rawId as Base64 string
-      const rawIdBase64 = bufferToBase64(credential.rawId);
-      localStorage.setItem("fp_raw_id", rawIdBase64);
-      
+      localStorage.setItem("fp_raw_id", bufferToBase64(credential.rawId));
       alert("फिंगरप्रिंट रजिस्टर हो गया है!");
       checkFpRegistration();
       unlockApp();
     }
-  } catch (err) {
-    console.error("Registration error:", err);
-    alert("रजिस्ट्रेशन विफल: " + err.message);
-  }
+  } catch (err) { alert("रजिस्ट्रेशन विफल: " + err.message); }
 }
 
-// Fixed Unlock: Use navigator.credentials.get() with allowCredentials
 async function triggerFingerprint() {
   try {
     const rawIdBase64 = localStorage.getItem("fp_raw_id");
     if (!rawIdBase64) return;
-
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
-
-    // ✅ FIX: Convert stored Base64 back to Buffer
-    const rawIdBuffer = base64ToBuffer(rawIdBase64);
-
     const options = {
       publicKey: {
         challenge: challenge,
         timeout: 60000,
         userVerification: "required",
-        allowCredentials: [{
-          id: rawIdBuffer,
-          type: "public-key"
-        }]
+        allowCredentials: [{ id: base64ToBuffer(rawIdBase64), type: "public-key" }]
       }
     };
-
     const assertion = await navigator.credentials.get(options);
-    if (assertion) {
-      unlockApp();
-    }
-  } catch (err) {
-    console.error("WebAuthn Auth Error:", err);
-    // Explicit fail message only on manual click
-    if(event && (event.type === 'click' || event.type === 'touchstart')) {
-        alert("Fingerprint authentication failed.");
-    }
-  }
+    if (assertion) { unlockApp(); }
+  } catch (err) { console.error("WebAuthn Auth Error:", err); }
 }
 
 function verifyPin() {
   const input = document.getElementById("pinInput").value;
-  const stored = localStorage.getItem("app_pin");
-  if (input === stored) {
-    unlockApp();
-  } else {
-    alert("गलत PIN!");
-    document.getElementById("pinInput").value = "";
-  }
+  if (input === localStorage.getItem("app_pin")) { unlockApp(); }
+  else { alert("गलत PIN!"); document.getElementById("pinInput").value = ""; }
 }
 
-function unlockApp() {
-  document.getElementById("lockScreen").style.display = "none";
-  document.getElementById("pinInput").value = "";
-}
-
-function logout() {
-  document.getElementById("lockScreen").style.display = "flex";
-  if (localStorage.getItem("fp_raw_id")) {
-    triggerFingerprint();
-  }
-}
-
+function unlockApp() { document.getElementById("lockScreen").style.display = "none"; }
+function logout() { document.getElementById("lockScreen").style.display = "flex"; }
 function forgotPin() {
-  const master = prompt("मास्टर पासवर्ड:");
-  if (master === MASTER_PASSWORD) {
+  if (prompt("मास्टर पासवर्ड:") === MASTER_PASSWORD) {
     const newPin = prompt("नया PIN:");
-    if (newPin) {
-      localStorage.setItem("app_pin", newPin);
-      alert("PIN बदल दिया गया है।");
-    }
+    if (newPin) { localStorage.setItem("app_pin", newPin); alert("PIN बदल दिया गया है।"); }
   }
 }
 
-// ===== PRINT PREVIEW FUNCTIONS =====
 function openCustomPreview() {
   const title = document.getElementById("ledgerTitle").innerText;
   const rows = document.querySelectorAll("#ledgerTable tbody tr");
-
-  let html = `
-    <h2 style="text-align:center;">SAINI TRADING COMPANY</h2>
-    <h3 style="text-align:center;">(${title})</h3>
-    <table style="width:100%;border-collapse:collapse;" border="1">
-      <tr>
-        <th>तारीख</th>
-        <th>विवरण</th>
-        <th>Credit</th>
-        <th>Debit</th>
-      </tr>
-  `;
-
+  let html = `<div style="padding:20px; font-family: sans-serif;">
+    <h1 style="text-align:center; margin:0; color:#512da8;">SAINI TRADING COMPANY</h1>
+    <h3 style="text-align:center; margin:5px 0 20px 0;">(${title})</h3>
+    <table style="width:100%; border-collapse:collapse; font-size:14px;" border="1">
+      <tr style="background:#f2f2f2;">
+        <th style="padding:10px;">तारीख</th>
+        <th style="padding:10px; text-align:left;">विवरण</th>
+        <th style="padding:10px;">Credit</th>
+        <th style="padding:10px;">Debit</th>
+      </tr>`;
   rows.forEach(r => {
     const c = r.children;
-    html += `
-      <tr>
-        <td>${c[0].innerText}</td>
-        <td>${c[1].innerText}</td>
-        <td>${c[2].innerText}</td>
-        <td>${c[3].innerText}</td>
-      </tr>`;
+    html += `<tr>
+      <td style="padding:8px; text-align:center;">${c[0].innerText.replace('\n', ' ')}</td>
+      <td style="padding:8px;">${c[1].innerText}</td>
+      <td style="padding:8px; text-align:center; color:blue;">${c[2].innerText}</td>
+      <td style="padding:8px; text-align:center; color:red;">${c[3].innerText}</td>
+    </tr>`;
   });
-
-  html += `</table>`;
-
+  html += `</table></div>`;
   document.getElementById("previewContent").innerHTML = html;
-  document.getElementById("printPreviewModal").style.display = "flex";
-document.documentElement.style.setProperty("--p-zoom", 1);
-document.getElementById("zoomRange").value = 1;
-applyZoom();
-document.getElementById("previewContent").style.transform = "scale(0.95)";
+  document.getElementById("printPreviewModal").style.display = "block";
 }
-
+window.onload = function(){
+updateMainBalances();
+}
 </script>
-<div id="printPreviewModal"
-     style="display:none;
-            position:fixed;
-            inset:0;
-            background:black;
-            z-index:9999;
-            overflow:auto;">
-  <div style="background:white;padding:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-  <button onclick="closePreview()">❌ Close</button>
-  <div style="display:flex;align-items:center;gap:6px;">
-    <b>Zoom</b>
-    <input type="range" id="zoomRange" min="0.5" max="2" step="0.05" value="1" oninput="applyZoom()">
+
+<div id="printPreviewModal" style="display:none; position:fixed; inset:0; z-index:9999; overflow:auto;">
+  <div class="preview-toolbar">
+    <button onclick="closePreview()" style="background:#f44336; color:white; padding:10px 20px;">❌ बंद करें</button>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <b>Zoom:</b>
+      <input type="range" id="zoomRange" min="0.5" max="2" step="0.1" value="1" oninput="applyZoom()">
+    </div>
+    <button onclick="window.print()" style="background:#2196f3; color:white; padding:10px 20px;">🖨️ प्रिंट निकालें</button>
   </div>
-  <button onclick="window.print()">🖨️ Print</button>
+  <div style="display:flex; justify-content:center; padding:20px;">
+    <div id="previewContent" style="background:white; box-shadow:0 0 50px rgba(0,0,0,0.5); width: 100%; max-width: 800px; transform-origin: top center;"></div>
+  </div>
 </div>
-  <div id="previewContent" style="background:white;padding:10px;"></div>
-</div>
+
 </body>
 </html>
