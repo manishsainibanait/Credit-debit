@@ -32,6 +32,57 @@ font-size:14px;
 @page{
 margin:5mm;
 }
+
+/* UPDATED: Fix Combined Table Visibility and Wrapping */
+.combined-scroll-wrapper {
+  width: 100%;
+  margin-bottom: 15px;
+  background: #fff;
+}
+
+.combined-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed; /* Added: Mandatory fixed layout */
+  word-break: break-word; /* Added: Wrap long names */
+}
+
+/* Set specific column widths for a clean mobile layout */
+.combined-table th:nth-child(1), .combined-table td:nth-child(1) { width: 15%; } /* Date */
+.combined-table th:nth-child(2), .combined-table td:nth-child(2) { width: 35%; text-align: left; } /* Name */
+.combined-table th:nth-child(3), .combined-table td:nth-child(3) { width: 14%; } /* Type */
+.combined-table th:nth-child(4), .combined-table td:nth-child(4) { width: 18%; } /* Credit */
+.combined-table th:nth-child(5), .combined-table td:nth-child(5) { width: 18%; } /* Debit */
+
+.combined-table th, .combined-table td {
+  padding: 8px 4px;
+  border: 1px solid #ddd;
+}
+
+/* TASK 3: Balance Box Styling */
+.summary-container {
+    background: #fff;
+    border: 2px solid var(--primary);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: var(--card-shadow);
+}
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+.final-balance-row {
+    border-top: 1px solid #ddd;
+    margin-top: 10px;
+    padding-top: 10px;
+    font-weight: bold;
+    font-size: 18px;
+    color: var(--success);
+}
 </style>
 
   <meta charset="UTF-8">
@@ -310,6 +361,12 @@ margin:5mm;
   </div>
 
   <div id="balanceCards">
+<div class="balance-box" onclick="openCombinedLedger()" style="cursor:pointer;">
+  <div style="text-align:left;">
+    <div style="font-size:14px;color:#666;">📊 सभी एंट्री</div>
+    <div class="balance">Bank + Kharch Ledger</div>
+  </div>
+</div>
     <div class="balance-box" onclick="openLedger('kharchKhata')" style="cursor: pointer;">
       <div style="text-align: left;">
         <div style="font-size: 14px; color: #666;">🧾 खर्चा खाता Balance</div>
@@ -820,10 +877,136 @@ function openCustomPreview() {
   document.getElementById("previewContent").innerHTML = html;
   document.getElementById("printPreviewModal").style.display = "block";
 }
+
+/** * TASK 2 & 3: Improved Combined Ledger Logic
+ * This function renders the UI shell.
+ */
+function openCombinedLedger(){
+  let combined = [];
+  db.ref("bankKhata").once("value",snap=>{
+    const data = snap.val() || {};
+    Object.values(data).forEach(e=>{ combined.push({...e,type:"Bank"}); });
+    db.ref("kharchKhata").once("value",snap2=>{
+      const data2 = snap2.val() || {};
+      Object.values(data2).forEach(e=>{ combined.push({...e,type:"Kharch"}); });
+      combined.sort((a,b)=>b.date.localeCompare(a.date));
+      
+      // Render Initial Shell (Persistent Input)
+      renderCombinedShell(combined);
+    });
+  });
+}
+
+/**
+ * UPDATED: Combined Ledger Shell matches normal Ledger print preview
+ */
+function renderCombinedShell(data){
+    let html = `
+    <div style="padding:20px; font-family:sans-serif; background:white;">
+        <h1 style="text-align:center; margin:0; color:#512da8;">SAINI TRADING COMPANY</h1>
+        <h3 style="text-align:center; margin:5px 0 20px 0;">(Combined Ledger)</h3>
+        
+        <div class="no-print">
+          <input type="text" id="combinedSearchInput" placeholder="नाम खोजें..." 
+          style="width:100%;padding:12px;margin-bottom:15px;border:1px solid #ccc;border-radius:10px;font-size:16px;">
+        </div>
+        
+        <div id="combinedSummaryArea"></div>
+
+        <div class="combined-scroll-wrapper">
+            <table class="combined-table" border="1">
+                <thead>
+                    <tr style="background:#f2f2f2;">
+                        <th>तारीख</th>
+                        <th>विवरण</th>
+                        <th>Type</th>
+                        <th>Credit</th>
+                        <th>Debit</th>
+                    </tr>
+                </thead>
+                <tbody id="combinedTableBody"></tbody>
+            </table>
+        </div>
+    </div>`;
+
+    document.getElementById("previewContent").innerHTML = html;
+    document.getElementById("printPreviewModal").style.display = "block";
+
+    // Attach real-time search listener
+    const input = document.getElementById("combinedSearchInput");
+    input.addEventListener("input", (e) => {
+        updateCombinedTable(data, e.target.value);
+    });
+
+    // Initial fill
+    updateCombinedTable(data, "");
+}
+
+/**
+ * TASK 2 & 3: Updates table content and balances without refreshing the input field
+ */
+function updateCombinedTable(data, query){
+    const q = query.toLowerCase().trim();
+    const tbody = document.getElementById("combinedTableBody");
+    const summaryArea = document.getElementById("combinedSummaryArea");
+
+    let filteredHtml = "";
+    
+    // TASK 3: Variables for Totals
+    let bankCr = 0, bankDb = 0;
+    let khCr = 0, khDb = 0;
+
+    data.forEach(e => {
+        if (q === "" || e.desc.toLowerCase().includes(q)) {
+            // Aggregate totals for the searched name
+            if (q !== "") {
+                if (e.type === "Bank") {
+                    bankCr += Number(e.credit || 0);
+                    bankDb += Number(e.debit || 0);
+                } else {
+                    khCr += Number(e.credit || 0);
+                    khDb += Number(e.debit || 0);
+                }
+            }
+
+            filteredHtml += `<tr>
+                <td style="text-align:center; font-size:11px;">${formatDate(e.date).replace('\n', ' ')}</td>
+                <td style="font-weight:bold; color:#333; text-align:left;">${e.desc}</td>
+                <td style="text-align:center;">${e.type}</td>
+                <td style="color:blue;text-align:center;">${e.credit > 0 ? e.credit : '-'}</td>
+                <td style="color:red;text-align:center;">${e.debit > 0 ? e.debit : '-'}</td>
+            </tr>`;
+        }
+    });
+
+    tbody.innerHTML = filteredHtml;
+
+    // TASK 3: Render the Balance Summary if searching
+    if (q !== "") {
+        const finalBal = (bankCr + khCr) - (bankDb + khDb);
+        summaryArea.innerHTML = `
+        <div class="summary-container" style="border:1px solid #ddd; padding:10px; margin-bottom:15px; border-radius:8px;">
+            <div style="font-size:14px; font-weight:bold; border-bottom:1px solid #eee; margin-bottom:5px;">Customer: ${query}</div>
+            
+            <div class="summary-row" style="display:flex; justify-content:space-between; font-size:12px;">
+                <span>Bank: Cr ${bankCr} / Db ${bankDb}</span>
+                <span>Kharch: Cr ${khCr} / Db ${khDb}</span>
+            </div>
+            
+            <div style="margin-top:5px; padding-top:5px; border-top:1px dashed #ccc; font-weight:bold; font-size:16px; color:var(--success); text-align:right;">
+                Balance: ₹${finalBal}
+            </div>
+        </div>`;
+    } else {
+        summaryArea.innerHTML = "";
+    }
+}
+
 window.onload = function(){
 updateMainBalances();
 initSecurity();
 }
+
 let lastTap = 0;
 
 document.addEventListener("touchend", function(){
@@ -863,7 +1046,7 @@ document.addEventListener("backbutton", function (e) {
 </script>
 
 <div id="printPreviewModal" style="display:none; position:fixed; inset:0; z-index:9999; overflow:auto;">
-  <div class="preview-toolbar">
+  <div class="preview-toolbar no-print">
     <button onclick="closePreview()" style="background:#f44336; color:white; padding:10px 20px;">❌ बंद करें</button>
     <div style="display:flex; align-items:center; gap:10px;">
       <b>Zoom:</b>
@@ -871,8 +1054,8 @@ document.addEventListener("backbutton", function (e) {
     </div>
     <button onclick="window.print()" style="background:#2196f3; color:white; padding:10px 20px;">🖨️ प्रिंट निकालें</button>
   </div>
-  <div style="display:flex; justify-content:center; padding:20px;">
-    <div id="previewContent" style="background:white; box-shadow:0 0 50px rgba(0,0,0,0.5); width:900px; max-width:100%; transform-origin:top center; overflow:hidden;"></div>
+  <div style="display:flex; justify-content:center; padding:10px;">
+   <div id="previewContent" style="background:white; box-shadow:0 0 50px rgba(0,0,0,0.5); width:100%; max-width:800px; transform-origin:top center; overflow:hidden;"></div>
   </div>
 </div>
 
