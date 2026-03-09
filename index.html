@@ -267,16 +267,16 @@ margin:5mm;
   <h2 style="text-align: center; margin-top: 10px;">खाते का सारांश</h2>
   
   <div id="balanceCards">
-    <div class="balance-box">
+   <div class="balance-box" onclick="openLedger('kharchKhata')" style="cursor:pointer;">
       <div style="text-align: left;">
-        <div style="font-size: 14px; color: #666;">🧾 कुल खर्चा</div>
+        <div style="font-size: 14px; color: #666;">🧾 खर्चा खाता</div>
         <div class="balance" id="kharchBalance" style="color: var(--primary);">₹0</div>
       </div>
       <i class="fas fa-chevron-right" style="color: #ccc;"></i>
     </div>
-    <div class="balance-box">
+  <div class="balance-box" onclick="openLedger('bankKhata')" style="cursor:pointer;">
       <div style="text-align: left;">
-        <div style="font-size: 14px; color: #666;">🏦 बैंक बैलेंस</div>
+  <div style="font-size: 14px; color: #666;">🏦 बैंक खाता</div>
         <div class="balance" id="bankBalance" style="color: var(--secondary);">₹0</div>
       </div>
       <i class="fas fa-chevron-right" style="color: #ccc;"></i>
@@ -284,12 +284,7 @@ margin:5mm;
   </div>
 
   <div style="margin-top: 30px;">
-    <button class="account-btn" onclick="openLedger('kharchKhata')">
-      <i class="fas fa-receipt" style="margin-right: 15px; font-size: 24px;"></i> खर्चा खाता खोलें
-    </button>
-    <button class="account-btn" onclick="openLedger('bankKhata')">
-      <i class="fas fa-university" style="margin-right: 15px; font-size: 24px;"></i> बैंक खाता खोलें
-    </button>
+ 
   </div>
 </div>
 
@@ -714,6 +709,18 @@ window.onload = function(){
 updateMainBalances();
 initSecurity();
 }
+let lastTap = 0;
+
+document.addEventListener("touchend", function () {
+  let currentTime = new Date().getTime();
+  let tapLength = currentTime - lastTap;
+
+  if (tapLength < 300 && tapLength > 0) {
+    goHome();
+  }
+
+  lastTap = currentTime;
+});
 </script>
 
 <div id="printPreviewModal" style="display:none; position:fixed; inset:0; z-index:9999; overflow:auto;">
@@ -737,5 +744,16 @@ overflow:hidden;
   </div>
 </div>
 
+<div style="
+position:fixed;
+bottom:10px;
+left:0;
+width:100%;
+text-align:center;
+font-size:12px;
+color:#666;
+">
+App Created by MANISH SAINI DHANANI 
+</div>
 </body>
 </html>
