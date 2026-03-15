@@ -329,10 +329,9 @@ white-space:nowrap;
   
   <input type="password" id="pinInput" class="lock-input" placeholder="••••" maxlength="6" inputmode="numeric">
   
-  <button class="lock-btn" onclick="verifyPin()">अनब्लॉक करें</button>
   <button class="lock-btn reg-fp-btn" id="regFpBtn" onclick="registerFingerprint()">
-    <i class="fas fa-user-plus"></i> फिंगरप्रिंट रजिस्टर करें
-  </button>
+<i class="fas fa-face-smile"></i> Face / Fingerprint Register
+</button>
 
   <button class="lock-btn fp-btn" id="fpBtn" onclick="triggerFingerprint()">
     <i class="fas fa-fingerprint"></i> फिंगरप्रिंट से खोलें
@@ -808,7 +807,7 @@ async function registerFingerprint() {
     const options = {
       publicKey: {
         challenge: challenge,
-        rp: { name: "Daily Cash Book" },
+        rp: { name: "SAINI TRADING COMPANY" },
         user: { id: Uint8Array.from("user" + Date.now(), c => c.charCodeAt(0)), name: "user@dailycash", displayName: "Cash Book User" },
         pubKeyCredParams: [{ alg: -7, type: "public-key" }],
         timeout: 60000,
