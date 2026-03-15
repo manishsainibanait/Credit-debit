@@ -93,15 +93,23 @@ margin:5mm;
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --primary: #512da8;
-    --primary-light: #673ab7;
-    --secondary: #2196f3;
-    --success: #4caf50;
-    --danger: #f44336;
-    --warning: #ff9800;
-    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-  }
+  --primary: #512da8;
+  --primary-light: #673ab7;
+  --secondary: #2196f3;
+  --success: #4caf50;
+  --danger: #f44336;
+  --warning: #ff9800;
+  --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+}
+
+.login-title{
+font-size:20px;
+font-weight:900;
+letter-spacing:2px;
+text-align:center;
+white-space:nowrap;
+}
 
   body {
     font-family: 'Noto Sans Devanagari', sans-serif;
@@ -309,8 +317,8 @@ margin:5mm;
 <body>
 
 <div id="lockScreen">
-  <div class="login-title" style="font-size: 32px; font-weight: 800; margin-bottom: 10px;">DAILY CASH</div>
-  <div style="font-size: 14px; opacity: 0.8; margin-bottom: 30px;">Digital Ledger System</div>
+  <div class="login-title">SAINI TRADING COMPANY</div>
+  <div style="font-size: 14px; opacity: 0.8; margin-bottom: 30px;">Daily Cash Ledger</div>
   
   <div style="background: rgba(255,255,255,0.1); padding: 30px; border-radius: 50%; margin-bottom: 25px;">
     <i class="fas fa-shield-halved" style="font-size: 50px;"></i>
@@ -1007,15 +1015,17 @@ updateMainBalances();
 initSecurity();
 }
 
+
+
 let lastTap = 0;
 
-document.addEventListener("touchend", function(){
+document.addEventListener("click", function () {
 
-    const now = new Date().getTime();
+    const now = Date.now();
 
-    if(now - lastTap < 300){
+    if (now - lastTap < 300) {
 
-        if(document.getElementById("ledgerScreen").classList.contains("active")){
+        if (document.getElementById("ledgerScreen").classList.contains("active")) {
             goHome();
         }
 
