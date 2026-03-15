@@ -793,13 +793,11 @@ async function initSecurity() {
 }
 
 function checkFpRegistration() {
-  const hasReg = localStorage.getItem("fp_raw_id");
   if (!!window.PublicKeyCredential) {
-    document.getElementById('fpBtn').style.display = hasReg ? 'block' : 'none';
-    document.getElementById('regFpBtn').style.display = hasReg ? 'none' : 'block';
+    document.getElementById('fpBtn').style.display = 'block';
+    document.getElementById('regFpBtn').style.display = 'block';
   }
 }
-
 async function registerFingerprint() {
   try {
     const challenge = new Uint8Array(32);
@@ -1073,4 +1071,3 @@ App Created by MANISH SAINI DHANANI
 </div>
 </body>
 </html>
-ms
