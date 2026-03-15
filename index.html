@@ -328,7 +328,9 @@ white-space:nowrap;
   <p style="font-size: 14px; opacity: 0.8; margin-bottom: 10px;">अपना PIN दर्ज करें</p>
   
   <input type="password" id="pinInput" class="lock-input" placeholder="••••" maxlength="6" inputmode="numeric">
-  
+  <button class="lock-btn" onclick="verifyPin()">
+🔓 PIN से खोलें
+</button>
   <button class="lock-btn reg-fp-btn" id="regFpBtn" onclick="registerFingerprint()">
 <i class="fas fa-face-smile"></i> Face / Fingerprint Register
 </button>
