@@ -809,13 +809,17 @@ async function registerFingerprint() {
         user: { id: Uint8Array.from("user" + Date.now(), c => c.charCodeAt(0)), name: "user@dailycash", displayName: "Cash Book User" },
         pubKeyCredParams: [{ alg: -7, type: "public-key" }],
         timeout: 60000,
-        authenticatorSelection: { userVerification: "required" }
+        authenticatorSelection: {
+  authenticatorAttachment: "platform",
+  userVerification: "preferred",
+  residentKey: "preferred"
+}
       }
     };
     const credential = await navigator.credentials.create(options);
     if (credential) {
       localStorage.setItem("fp_raw_id", bufferToBase64(credential.rawId));
-      alert("फिंगरप्रिंट रजिस्टर हो गया है!");
+      alert("Face / Fingerprint register हो गया है!");
       checkFpRegistration();
       unlockApp();
     }
