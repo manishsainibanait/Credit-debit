@@ -918,9 +918,19 @@ function renderCombinedShell(data){
         <h3 style="text-align:center; margin:5px 0 20px 0;">(Combined Ledger)</h3>
         
         <div class="no-print">
-          <input type="text" id="combinedSearchInput" placeholder="नाम खोजें..." 
-          style="width:100%;padding:12px;margin-bottom:15px;border:1px solid #ccc;border-radius:10px;font-size:16px;">
-        </div>
+
+  <input type="text" id="combinedSearchInput"
+    placeholder="नाम खोजें..."
+    style="width:100%;padding:12px;margin-bottom:15px;border:1px solid #ccc;border-radius:10px;font-size:16px;">
+
+  <div style="display:flex; gap:10px; margin-bottom:10px;">
+    <input type="date" id="combinedFromDate" style="flex:1; padding:10px;">
+    <input type="date" id="combinedToDate" style="flex:1; padding:10px;">
+  </div>
+
+  <div id="combinedTotals" style="margin-bottom:10px; font-weight:bold;"></div>
+
+</div>
         
         <div id="combinedSummaryArea"></div>
 
@@ -951,7 +961,19 @@ function renderCombinedShell(data){
 
     // Initial fill
     updateCombinedTable(data, "");
+
+
+// ✅ YAH ADD KARNA HAI (IMPORTANT)
+document.getElementById("combinedFromDate").addEventListener("input", () => {
+  updateCombinedTable(data, document.getElementById("combinedSearchInput").value);
+});
+
+document.getElementById("combinedToDate").addEventListener("input", () => {
+  updateCombinedTable(data, document.getElementById("combinedSearchInput").value);
+});
+
 }
+
 
 /**
  * TASK 2 & 3: Updates table content and balances without refreshing the input field
@@ -960,7 +982,10 @@ function updateCombinedTable(data, query){
     const q = query.toLowerCase().trim();
     const tbody = document.getElementById("combinedTableBody");
     const summaryArea = document.getElementById("combinedSummaryArea");
+const from = document.getElementById("combinedFromDate")?.value;
+const to = document.getElementById("combinedToDate")?.value;
 
+let totalCr = 0, totalDb = 0;
     let filteredHtml = "";
     
     // TASK 3: Variables for Totals
@@ -968,6 +993,13 @@ function updateCombinedTable(data, query){
     let khCr = 0, khDb = 0;
 
     data.forEach(e => {
+// DATE FILTER
+if (from && e.date < from) return;
+if (to && e.date > to) return;
+
+// TOTAL
+totalCr += Number(e.credit || 0);
+totalDb += Number(e.debit || 0);
         if (q === "" || e.desc.toLowerCase().includes(q)) {
             // Aggregate totals for the searched name
             if (q !== "") {
@@ -991,6 +1023,8 @@ function updateCombinedTable(data, query){
     });
 
     tbody.innerHTML = filteredHtml;
+document.getElementById("combinedTotals").innerHTML =
+  "💰 Total Credit: ₹" + totalCr + " | 💸 Total Debit: ₹" + totalDb;
 
     // TASK 3: Render the Balance Summary if searching
     if (q !== "") {
