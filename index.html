@@ -642,8 +642,7 @@ function renderTable(){
 
   document.getElementById("creditTotal").innerText = tc;
   document.getElementById("debitTotal").innerText = td;
-  document.getElementById("balance").innerText = tc - td;
-
+  document.getElementById("balance").innerText = (tc - td).toFixed(2);
   updateMainBalances();
 }
 
@@ -760,7 +759,7 @@ function updateMainBalances(){
       });
       
       const el = document.getElementById(path==="kharchKhata" ? "kharchBalance" : "bankBalance");
-      if(el) el.innerText="₹"+(tc-td);
+      if(el) el.innerText="₹"+(tc-td).toFixed(2);
       
       if(path === "bankKhata"){
         document.getElementById("todayBankCr").innerText = "₹"+todayBankCr;
