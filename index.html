@@ -508,10 +508,14 @@ let currentPath = "";
 let allData = {};
 let descSuggestions = new Set();
 
+function formatMoney(num){
+  return Number(num || 0).toFixed(2);
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return "";
   const [year, month, day] = dateStr.split("-");
-  return `${parseInt(day)}-${parseInt(month)}\n${year}`;
+  return `${parseInt(day)}-${parseInt(month)} ${year}`;
 }
 
 function openLedger(type){
@@ -640,9 +644,9 @@ function renderTable(){
     tbody.appendChild(tr);
   });
 
-  document.getElementById("creditTotal").innerText = tc;
-  document.getElementById("debitTotal").innerText = td;
-  document.getElementById("balance").innerText = (tc - td).toFixed(2);
+  document.getElementById("creditTotal").innerText = formatMoney(tc);
+document.getElementById("debitTotal").innerText = formatMoney(td);
+document.getElementById("balance").innerText = formatMoney(tc - td);
   updateMainBalances();
 }
 
@@ -759,8 +763,7 @@ function updateMainBalances(){
       });
       
       const el = document.getElementById(path==="kharchKhata" ? "kharchBalance" : "bankBalance");
-      if(el) el.innerText="₹"+(tc-td).toFixed(2);
-      
+      if(el) el.innerText="₹"+formatMoney(tc-td);
       if(path === "bankKhata"){
         document.getElementById("todayBankCr").innerText = "₹"+todayBankCr;
         document.getElementById("todayBankDb").innerText = "₹"+todayBankDb;
@@ -1038,7 +1041,7 @@ document.getElementById("combinedTotals").innerHTML =
             </div>
             
             <div style="margin-top:5px; padding-top:5px; border-top:1px dashed #ccc; font-weight:bold; font-size:16px; color:var(--success); text-align:right;">
-                Balance: ₹${finalBal}
+                Balance: ₹${formatMoney(finalBal)}
             </div>
         </div>`;
     } else {
