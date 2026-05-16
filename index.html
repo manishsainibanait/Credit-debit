@@ -402,7 +402,7 @@ white-space:nowrap;
   <div id="balanceCards">
 <div class="balance-box" onclick="openCombinedLedger()" style="cursor:pointer;">
   <div style="text-align:left;">
-    <div style="font-size:14px;color:#666;">📊 सभी एंट्री</div>
+    <div style="font-size:14px;color:#666;">📊 सभी ENTRY</div>
     <div class="balance">Bank + Kharch Ledger</div>
   </div>
 </div>
@@ -553,9 +553,10 @@ const firstAppDb = firstAppInstance.database();
 
 let currentPath = "";
 let allData = {};
-let descSuggestions = []; // Array of strings format "Name (Village)"
+let descSuggestions = []; // Array of strings format "Name (Father - Village)"
 let firstAppCustomerMap = {}; // Maps lowerCaseName -> FirstApp Customer Key
 let syncReportMasterData = []; // Global holder for data sync records
+let lastSelectedDate = ""; // Variable to remember back date values between clicks
 
 function formatMoney(num){
   return Number(num || 0).toFixed(2);
@@ -567,63 +568,86 @@ function formatDate(dateStr) {
   return `${parseInt(day)}-${parseInt(month)} ${year}`;
 }
 
-// Helper to look up entry key inside First App's matching customer space and UPDATE
-function syncEditToFirstApp(customerName, secondAppData) {
+// ULTIMATE ROUTING ENGINE: Live parse date strings to route into true latest chronological account calendar target node
+function syncDataToFirstAppWithTargetRouting(customerName, secondAppData, explicitKey = null) {
   const matchKey = customerName.toLowerCase().trim();
   if (firstAppCustomerMap[matchKey]) {
     const firstAppId = firstAppCustomerMap[matchKey];
     const sourceLabel = currentPath === "bankKhata" ? "🏦 बैंक खाता" : "🧾 खर्चा खाता";
     
-    firstAppDb.ref(`ledgers/${firstAppId}/default`).once("value").then(snap => {
-      let firstAppEntryKey = null;
-      snap.forEach(child => {
-        const entry = child.val();
-        if (entry.startDate === secondAppData.date && entry.note && entry.note.includes(sourceLabel)) {
-          firstAppEntryKey = child.key;
-        }
-      });
+    // Live full snap read
+    firstAppDb.ref(`accounts/${firstAppId}`).once("value").then(accSnap => {
+      let targetAccountId = "default"; // Standard Fallback
       
-      const updatedFirstAppData = {
+      if (accSnap.exists()) {
+        let maxTime = 0;
+        
+        accSnap.forEach(childSnap => {
+          let nodeName = childSnap.val().name || "";
+          let nodeKey = childSnap.key;
+          
+          // Fallback parsing engine rules
+          let partDate = nodeName.split(" - ")[0].trim(); // Extract date string segment (e.g. "8-5-2026")
+          let match = partDate.match(/^(\d+)-(\d+)-(\d+)$/);
+          
+          if (match) {
+            let day = parseInt(match[1]);
+            let month = parseInt(match[2]) - 1;
+            let year = parseInt(match[3]);
+            let parsedTime = new Date(year, month, day).getTime();
+            
+            if (parsedTime > maxTime) {
+              maxTime = parsedTime;
+              targetAccountId = nodeKey; // Strict dynamic routing to the newest structural account time node
+            }
+          } else if (nodeKey !== "default" && maxTime === 0) {
+            // Safe routing to dynamic tree paths over old static defaults
+            targetAccountId = nodeKey;
+          }
+        });
+      }
+      
+      const pathTarget = `ledgers/${firstAppId}/${targetAccountId}`;
+      
+      const firstAppData = {
         startDate: secondAppData.date,
         endDate: "",
-        credit: secondAppData.credit,
-        debit: secondAppData.debit,
+        credit: Number(secondAppData.credit || 0),
+        debit: Number(secondAppData.debit || 0),
         interest: 0,
         days: 0,
         interestAmount: 0,
         interestType: secondAppData.debit > 0 ? "debit" : "credit",
         note: `Auto Sync From App-2 (${sourceLabel})`
       };
-      
-      if (firstAppEntryKey) {
-        firstAppDb.ref(`ledgers/${firstAppId}/default/${firstAppEntryKey}`).update(updatedFirstAppData);
+
+      if (explicitKey) {
+        firstAppDb.ref(`${pathTarget}/${explicitKey}`).update(firstAppData);
       } else {
-        firstAppDb.ref(`ledgers/${firstAppId}/default`).push(updatedFirstAppData);
+        firstAppDb.ref(pathTarget).push(firstAppData);
       }
     });
   }
 }
 
-// NEW HELPER: Looks up matching entry inside First App and DELETES it cleanly
+// Looks up matching entry across all potential account paths inside First App and DELETES it cleanly
 function syncDeleteToFirstApp(customerName, secondAppData) {
   const matchKey = customerName.toLowerCase().trim();
   if (firstAppCustomerMap[matchKey]) {
     const firstAppId = firstAppCustomerMap[matchKey];
     const sourceLabel = currentPath === "bankKhata" ? "🏦 बैंक खाता" : "🧾 खर्चा खाता";
     
-    firstAppDb.ref(`ledgers/${firstAppId}/default`).once("value").then(snap => {
-      let firstAppEntryKey = null;
-      snap.forEach(child => {
-        const entry = child.val();
-        // Check matching signature and date attributes
-        if (entry.startDate === secondAppData.date && entry.note && entry.note.includes(sourceLabel)) {
-          firstAppEntryKey = child.key;
-        }
+    firstAppDb.ref(`ledgers/${firstAppId}`).once("value").then(snap => {
+      if (!snap.exists()) return;
+      snap.forEach(accountNode => {
+        const accId = accountNode.key;
+        accountNode.forEach(child => {
+          const entry = child.val();
+          if (entry.startDate === secondAppData.date && entry.note && entry.note.includes(sourceLabel)) {
+            firstAppDb.ref(`ledgers/${firstAppId}/${accId}/${child.key}`).remove();
+          }
+        });
       });
-      
-      if (firstAppEntryKey) {
-        firstAppDb.ref(`ledgers/${firstAppId}/default/${firstAppEntryKey}`).remove();
-      }
     });
   }
 }
@@ -647,14 +671,16 @@ function goHome(){
 function openPopup(){
   document.getElementById("popupForm").style.display = "flex";
   document.getElementById("popupTitle").innerText = "नई एंट्री जोड़ें";
-  document.getElementById("date").value = new Date().toISOString().split('T')[0];
+  
+  if (lastSelectedDate) {
+    document.getElementById("date").value = lastSelectedDate;
+  } else {
+    document.getElementById("date").value = new Date().toISOString().split('T')[0];
+  }
+  
   document.getElementById("desc").value = "";
   document.getElementById("credit").value = "0";
   document.getElementById("debit").value = "0";
-  
-  const saveBtn = document.getElementById("saveButton");
-  saveBtn.onclick = saveNew;
-  saveBtn.innerText = "💾 सुरक्षित करें";
   
   updateDescList();
 }
@@ -667,13 +693,14 @@ function closePopup(){
 function saveNew(){
   let typedName = document.getElementById("desc").value.trim();
   
-  // Clean suggestion formatting "Name (Village)" to extract clear original customer name string
   if (typedName.includes(" (") && typedName.endsWith(")")) {
       typedName = typedName.split(" (")[0].trim();
   }
   
+  lastSelectedDate = document.getElementById("date").value;
+  
   const data = {
-    date: document.getElementById("date").value,
+    date: lastSelectedDate,
     desc: typedName,
     credit: Number(document.getElementById("credit").value),
     debit: Number(document.getElementById("debit").value),
@@ -681,33 +708,12 @@ function saveNew(){
   };
   if(!data.desc) return alert("विवरण दर्ज करें!");
   
-  // 1. Save in Second App Normally
   db.ref(currentPath).push(data);
-  
-  // 2. Cross-Save to First App Ledger Account if Name matches master register
-  const matchKey = typedName.toLowerCase();
-  if(firstAppCustomerMap[matchKey]) {
-      const firstAppId = firstAppCustomerMap[matchKey];
-      const sourceLabel = currentPath === "bankKhata" ? "🏦 बैंक खाता" : "🧾 खर्चा खाता";
-      
-      const firstAppData = {
-          startDate: data.date,
-          endDate: "",
-          credit: data.credit,
-          debit: data.debit,
-          interest: 0,
-          days: 0,
-          interestAmount: 0,
-          interestType: data.debit > 0 ? "debit" : "credit",
-          note: `Auto Sync From App-2 (${sourceLabel})`
-      };
-      firstAppDb.ref(`ledgers/${firstAppId}/default`).push(firstAppData);
-  }
+  syncDataToFirstAppWithTargetRouting(typedName, data);
   
   closePopup();
 }
 
-// Pulls real-time registers from First App (UPDATED: Merges Name + Village into suggestion list)
 function loadFirstAppSuggestions() {
     firstAppDb.ref("customers").on("value", snap => {
         descSuggestions = [];
@@ -716,10 +722,10 @@ function loadFirstAppSuggestions() {
             let cust = child.val();
             if(cust && cust.name) {
                 let name = cust.name.trim();
+                let father = cust.father ? cust.father.trim() : "No Father";
                 let village = cust.village ? cust.village.trim() : "No Village";
                 
-                // Show Name and Village combined inside the layout dropdown suggestion
-                descSuggestions.push(`${name} (${village})`);
+                descSuggestions.push(`${name} (${father} - ${village})`);
                 firstAppCustomerMap[name.toLowerCase()] = child.key;
             }
         });
@@ -744,16 +750,12 @@ function loadLedger(){
   });
 }
 
-// UPDATED DELETION LOGIC: Intercepts local removal event to also mirror it into First App live bucket
 function deleteEntry(id) {
   const entry = allData[id];
   if (!entry) return;
 
   if (confirm("क्या आप वाकई इस एंट्री को डिलीट करना चाहते हैं?")) {
-    // Mirror delete request into First App live bucket
     syncDeleteToFirstApp(entry.desc, entry);
-    
-    // Perform standard local removal inside second app space
     db.ref(`${currentPath}/${id}`).remove();
   }
 }
@@ -794,10 +796,24 @@ function renderTable(){
     tc += e.credit;
     td += e.debit;
 
+    let displayName = e.desc;
+    let subtitleVillage = "";
+    
+    const matchedSug = descSuggestions.find(s => s.toLowerCase().startsWith(e.desc.toLowerCase() + " ("));
+    if (matchedSug) {
+       const part = matchedSug.split(" - ");
+       if (part.length > 1) {
+          subtitleVillage = part[part.length - 1].replace(")", "").trim();
+       }
+    }
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="td-date">${formatDate(e.date)}</td>
-      <td class="customer-name" onclick="filterByCustomer('${e.desc}')">${e.desc}</td>
+      <td class="customer-name" onclick="filterByCustomer('${e.desc}')">
+         <div style="font-weight:bold; color:var(--secondary);">${displayName}</div>
+         ${subtitleVillage ? `<div style="font-size:11px; color:#555; font-style:italic; font-weight:normal; margin-top:2px;">${subtitleVillage}</div>` : ''}
+      </td>
       <td class="credit">${e.credit > 0 ? e.credit : '-'}</td>
       <td class="debit">${e.debit > 0 ? e.debit : '-'}</td>
       <td class="action-cell no-print">
@@ -808,8 +824,8 @@ function renderTable(){
   });
 
   document.getElementById("creditTotal").innerText = formatMoney(tc);
-document.getElementById("debitTotal").innerText = formatMoney(td);
-document.getElementById("balance").innerText = formatMoney(tc - td);
+  document.getElementById("debitTotal").innerText = formatMoney(td);
+  document.getElementById("balance").innerText = formatMoney(tc - td);
   updateMainBalances();
 }
 
@@ -882,7 +898,10 @@ function editEntry(id) {
   document.getElementById("popupForm").style.display = "flex";
   document.getElementById("popupTitle").innerText = "एंट्री सुधारें";
   document.getElementById("date").value = entry.date;
-  document.getElementById("desc").value = entry.desc;
+  
+  const matchedSug = descSuggestions.find(s => s.toLowerCase().startsWith(entry.desc.toLowerCase() + " ("));
+  document.getElementById("desc").value = matchedSug ? matchedSug : entry.desc;
+  
   document.getElementById("credit").value = entry.credit;
   document.getElementById("debit").value = entry.debit;
   
@@ -903,12 +922,32 @@ function editEntry(id) {
     };
     if(!updated.desc) return alert("विवरण दर्ज करें!");
     
-    // Update locally inside second app
-    db.ref(`${currentPath}/${id}`).update(updated).then(() => {
-      // Trigger Inter-App Cross Sync update live for App 1
-      syncEditToFirstApp(updatedName, updated);
-      closePopup();
-    });
+    const matchKey = updatedName.toLowerCase().trim();
+    if (firstAppCustomerMap[matchKey]) {
+      const firstAppId = firstAppCustomerMap[matchKey];
+      const sourceLabel = currentPath === "bankKhata" ? "🏦 बैंक खाता" : "🧾 खर्चा खाता";
+      
+      firstAppDb.ref(`ledgers/${firstAppId}`).once("value").then(snap => {
+        let matchedFirstAppKey = null;
+        if (snap.exists()) {
+          snap.forEach(accountNode => {
+            accountNode.forEach(child => {
+              const item = child.val();
+              if (item.startDate === entry.date && item.note && item.note.includes(sourceLabel)) {
+                matchedFirstAppKey = child.key;
+              }
+            });
+          });
+        }
+        
+        db.ref(`${currentPath}/${id}`).update(updated).then(() => {
+          syncDataToFirstAppWithTargetRouting(updatedName, updated, matchedFirstAppKey);
+          closePopup();
+        });
+      });
+    } else {
+      db.ref(`${currentPath}/${id}`).update(updated).then(closePopup);
+    }
   };
 }
 
@@ -1064,6 +1103,7 @@ function openCustomPreview() {
   document.getElementById("printPreviewModal").style.display = "block";
 }
 
+// Combined View Shell & Core Filter Setup Engine logic
 function openCombinedLedger(){
   let combined = [];
   db.ref("bankKhata").once("value",snap=>{
@@ -1086,19 +1126,13 @@ function renderCombinedShell(data){
         <h3 style="text-align:center; margin:5px 0 20px 0;">(Combined Ledger)</h3>
         
         <div class="no-print">
-
-  <input type="text" id="combinedSearchInput"
-    placeholder="नाम खोजें..."
-    style="width:100%;padding:12px;margin-bottom:15px;border:1px solid #ccc;border-radius:10px;font-size:16px;">
-
-  <div style="display:flex; gap:10px; margin-bottom:10px;">
-    <input type="date" id="combinedFromDate" style="flex:1; padding:10px;">
-    <input type="date" id="combinedToDate" style="flex:1; padding:10px;">
-  </div>
-
-  <div id="combinedTotals" style="margin-bottom:10px; font-weight:bold;"></div>
-
-</div>
+          <input type="text" id="combinedSearchInput" placeholder="नाम खोजें..." style="width:100%;padding:12px;margin-bottom:15px;border:1px solid #ccc;border-radius:10px;font-size:16px;">
+          <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <input type="date" id="combinedFromDate" style="flex:1; padding:10px;">
+            <input type="date" id="combinedToDate" style="flex:1; padding:10px;">
+          </div>
+          <div id="combinedTotals" style="margin-bottom:10px; font-weight:bold;"></div>
+        </div>
         
         <div id="combinedSummaryArea"></div>
 
@@ -1128,35 +1162,34 @@ function renderCombinedShell(data){
 
     updateCombinedTable(data, "");
 
-document.getElementById("combinedFromDate").addEventListener("input", () => {
-  updateCombinedTable(data, document.getElementById("combinedSearchInput").value);
-});
+    document.getElementById("combinedFromDate").addEventListener("input", () => {
+      updateCombinedTable(data, document.getElementById("combinedSearchInput").value);
+    });
 
-document.getElementById("combinedToDate").addEventListener("input", () => {
-  updateCombinedTable(data, document.getElementById("combinedSearchInput").value);
-});
-
+    document.getElementById("combinedToDate").addEventListener("input", () => {
+      updateCombinedTable(data, document.getElementById("combinedSearchInput").value);
+    });
 }
 
 function updateCombinedTable(data, query){
     const q = query.toLowerCase().trim();
     const tbody = document.getElementById("combinedTableBody");
     const summaryArea = document.getElementById("combinedSummaryArea");
-const from = document.getElementById("combinedFromDate")?.value;
-const to = document.getElementById("combinedToDate")?.value;
+    const from = document.getElementById("combinedFromDate")?.value;
+    const to = document.getElementById("combinedToDate")?.value;
 
-let totalCr = 0, totalDb = 0;
+    let totalCr = 0, totalDb = 0;
     let filteredHtml = "";
     
     let bankCr = 0, bankDb = 0;
     let khCr = 0, khDb = 0;
 
     data.forEach(e => {
-if (from && e.date < from) return;
-if (to && e.date > to) return;
+        if (from && e.date < from) return;
+        if (to && e.date > to) return;
 
-totalCr += Number(e.credit || 0);
-totalDb += Number(e.debit || 0);
+        totalCr += Number(e.credit || 0);
+        totalDb += Number(e.debit || 0);
         if (q === "" || e.desc.toLowerCase().includes(q)) {
             if (q !== "") {
                 if (e.type === "Bank") {
@@ -1179,20 +1212,17 @@ totalDb += Number(e.debit || 0);
     });
 
     tbody.innerHTML = filteredHtml;
-document.getElementById("combinedTotals").innerHTML =
-  "💰 Total Credit: ₹" + totalCr + " | 💸 Total Debit: ₹" + totalDb;
+    document.getElementById("combinedTotals").innerHTML = "💰 Total Credit: ₹" + totalCr + " | 💸 Total Debit: ₹" + totalDb;
 
     if (q !== "") {
         const finalBal = (bankCr + khCr) - (bankDb + khDb);
         summaryArea.innerHTML = `
         <div class="summary-container" style="border:1px solid #ddd; padding:10px; margin-bottom:15px; border-radius:8px;">
             <div style="font-size:14px; font-weight:bold; border-bottom:1px solid #eee; margin-bottom:5px;">Customer: ${query}</div>
-            
             <div class="summary-row" style="display:flex; justify-content:space-between; font-size:12px;">
                 <span>Bank: Cr ${bankCr} / Db ${bankDb}</span>
                 <span>Kharch: Cr ${khCr} / Db ${khDb}</span>
             </div>
-            
             <div style="margin-top:5px; padding-top:5px; border-top:1px dashed #ccc; font-weight:bold; font-size:16px; color:var(--success); text-align:right;">
                 Balance: ₹${formatMoney(finalBal)}
             </div>
@@ -1213,7 +1243,6 @@ function openSyncReport() {
       const d2 = snap2.val() || {};
       Object.keys(d2).forEach(k => { combined.push({ ...d2[k], id: k, type: "Kharch" }); });
       
-      // Sorted by timestamp descending so the last entry is strictly at the top
       combined.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
       syncReportMasterData = combined; // Save globally
       
@@ -1281,7 +1310,6 @@ function renderSyncReportShell() {
   document.getElementById("previewContent").innerHTML = shellHtml;
   document.getElementById("printPreviewModal").style.display = "block";
   
-  // Render table content
   filterSyncTableBody();
 }
 
@@ -1303,9 +1331,22 @@ function filterSyncTableBody() {
       ? `<span style="color: #4caf50; font-weight: bold; font-size:11px;"><i class="fas fa-check-circle"></i> Sent<br>(App 1)</span>` 
       : `<span style="color: #f44336; font-weight: bold; font-size:11px;"><i class="fas fa-exclamation-triangle"></i> Pending</span>`;
       
+    let displayName = e.desc;
+    let subtitleVillage = "";
+    const matchedSug = descSuggestions.find(s => s.toLowerCase().startsWith(e.desc.toLowerCase() + " ("));
+    if (matchedSug) {
+       const part = matchedSug.split(" - ");
+       if (part.length > 1) {
+          subtitleVillage = part[part.length - 1].replace(")", "").trim();
+       }
+    }
+
     rowsHtml += `<tr>
       <td>${formatDate(e.date)}</td>
-      <td style="text-align:left;">${e.desc}</td>
+      <td style="text-align:left;">
+         <div style="font-weight:bold;">${displayName}</div>
+         ${subtitleVillage ? `<div style="font-size:11px; color:#555; font-style:italic; font-weight:normal; margin-top:2px;">${subtitleVillage}</div>` : ''}
+      </td>
       <td>${e.type === 'Bank' ? 'Bank' : 'Kharch'}</td>
       <td style="color:blue;">${e.credit > 0 ? '₹'+e.credit : '-'}</td>
       <td style="color:red;">${e.debit > 0 ? '₹'+e.debit : '-'}</td>
