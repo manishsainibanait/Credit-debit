@@ -29,6 +29,10 @@ font-size:14px;
 }
 }
 
+@media print {
+  .no-print { display: none !important; }
+}
+
 @page{
 margin:5mm;
 }
@@ -83,6 +87,32 @@ margin:5mm;
     font-size: 18px;
     color: var(--success);
 }
+
+/* FIX: Premium Responsive Layout Styling for Sync Monitor Report Table */
+.sync-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
+.sync-report-table th, .sync-report-table td {
+  padding: 10px 5px !important;
+  border: 1px solid #ddd;
+  text-align: center;
+  vertical-align: middle;
+  word-break: break-word;
+}
+.sync-report-table th {
+  background: #f8f9fa;
+  font-weight: bold;
+}
+/* Fixed column percentage allocation for neat alignment */
+.sync-report-table th:nth-child(1), .sync-report-table td:nth-child(1) { width: 15%; font-size: 11px; } /* Tariqh */
+.sync-report-table th:nth-child(2), .sync-report-table td:nth-child(2) { width: 26%; text-align: left; font-weight: bold; } /* Vivran */
+.sync-report-table th:nth-child(3), .sync-report-table td:nth-child(3) { width: 14%; } /* Type */
+.sync-report-table th:nth-child(4), .sync-report-table td:nth-child(4) { width: 11%; } /* Cr */
+.sync-report-table th:nth-child(5), .sync-report-table td:nth-child(5) { width: 11%; } /* Db */
+.sync-report-table th:nth-child(6), .sync-report-table td:nth-child(6) { width: 22%; font-size: 11px; } /* Status */
 </style>
 
   <meta charset="UTF-8">
@@ -388,6 +418,12 @@ white-space:nowrap;
         <div class="balance" id="bankBalance" style="color: var(--secondary);">₹0</div>
       </div>
     </div>
+    <div class="balance-box" onclick="openSyncReport()" style="cursor: pointer; border-left: 5px solid var(--warning);">
+      <div style="text-align: left;">
+        <div style="font-size: 14px; color: #666;">📊 Data Cross Sync Report</div>
+        <div class="balance" id="syncStatusSummary" style="color: var(--warning); font-size: 16px;">चेक करें कौन सा डेटा App 1 में गया</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -449,7 +485,7 @@ white-space:nowrap;
           <th style="text-align: left;">विवरण</th>
           <th>Credit</th>
           <th>Debit</th>
-          <th class="action-cell">⚙️</th>
+          <th class="action-cell no-print">⚙️</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -491,6 +527,7 @@ white-space:nowrap;
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
+// SECOND APP DATABASE
 const firebaseConfig = {
   apiKey: "AIzaSyADn_HUkP4ZfTOQ46eoQdXKIY7VAKd6odI",
   authDomain: "debit-4db50.firebaseapp.com",
@@ -504,9 +541,21 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// FIRST APP DATABASE INSTANCE FOR CROSS-SYNC SUGGESTIONS & SAVES
+const firstAppConfig = {  
+  apiKey: "AIzaSyB30K96un0DsFbJ0-dx329za1HEnky3iC8",  
+  authDomain: "ms-saini.firebaseapp.com",  
+  databaseURL: "https://ms-saini-default-rtdb.asia-southeast1.firebasedatabase.app",  
+  projectId: "ms-saini"
+};
+const firstAppInstance = firebase.initializeApp(firstAppConfig, "firstAppInstance");
+const firstAppDb = firstAppInstance.database();
+
 let currentPath = "";
 let allData = {};
-let descSuggestions = new Set();
+let descSuggestions = []; // Array of strings format "Name (Village)"
+let firstAppCustomerMap = {}; // Maps lowerCaseName -> FirstApp Customer Key
+let syncReportMasterData = []; // Global holder for data sync records
 
 function formatMoney(num){
   return Number(num || 0).toFixed(2);
@@ -516,6 +565,67 @@ function formatDate(dateStr) {
   if (!dateStr) return "";
   const [year, month, day] = dateStr.split("-");
   return `${parseInt(day)}-${parseInt(month)} ${year}`;
+}
+
+// Helper to look up entry key inside First App's matching customer space and UPDATE
+function syncEditToFirstApp(customerName, secondAppData) {
+  const matchKey = customerName.toLowerCase().trim();
+  if (firstAppCustomerMap[matchKey]) {
+    const firstAppId = firstAppCustomerMap[matchKey];
+    const sourceLabel = currentPath === "bankKhata" ? "🏦 बैंक खाता" : "🧾 खर्चा खाता";
+    
+    firstAppDb.ref(`ledgers/${firstAppId}/default`).once("value").then(snap => {
+      let firstAppEntryKey = null;
+      snap.forEach(child => {
+        const entry = child.val();
+        if (entry.startDate === secondAppData.date && entry.note && entry.note.includes(sourceLabel)) {
+          firstAppEntryKey = child.key;
+        }
+      });
+      
+      const updatedFirstAppData = {
+        startDate: secondAppData.date,
+        endDate: "",
+        credit: secondAppData.credit,
+        debit: secondAppData.debit,
+        interest: 0,
+        days: 0,
+        interestAmount: 0,
+        interestType: secondAppData.debit > 0 ? "debit" : "credit",
+        note: `Auto Sync From App-2 (${sourceLabel})`
+      };
+      
+      if (firstAppEntryKey) {
+        firstAppDb.ref(`ledgers/${firstAppId}/default/${firstAppEntryKey}`).update(updatedFirstAppData);
+      } else {
+        firstAppDb.ref(`ledgers/${firstAppId}/default`).push(updatedFirstAppData);
+      }
+    });
+  }
+}
+
+// NEW HELPER: Looks up matching entry inside First App and DELETES it cleanly
+function syncDeleteToFirstApp(customerName, secondAppData) {
+  const matchKey = customerName.toLowerCase().trim();
+  if (firstAppCustomerMap[matchKey]) {
+    const firstAppId = firstAppCustomerMap[matchKey];
+    const sourceLabel = currentPath === "bankKhata" ? "🏦 बैंक खाता" : "🧾 खर्चा खाता";
+    
+    firstAppDb.ref(`ledgers/${firstAppId}/default`).once("value").then(snap => {
+      let firstAppEntryKey = null;
+      snap.forEach(child => {
+        const entry = child.val();
+        // Check matching signature and date attributes
+        if (entry.startDate === secondAppData.date && entry.note && entry.note.includes(sourceLabel)) {
+          firstAppEntryKey = child.key;
+        }
+      });
+      
+      if (firstAppEntryKey) {
+        firstAppDb.ref(`ledgers/${firstAppId}/default/${firstAppEntryKey}`).remove();
+      }
+    });
+  }
 }
 
 function openLedger(type){
@@ -553,25 +663,76 @@ function closePopup(){
   document.getElementById("popupForm").style.display = "none";
 }
 
+// INTER-APP SAVE SYNC LOGIC (Saves clear typed text or filters cleanly from selection)
 function saveNew(){
+  let typedName = document.getElementById("desc").value.trim();
+  
+  // Clean suggestion formatting "Name (Village)" to extract clear original customer name string
+  if (typedName.includes(" (") && typedName.endsWith(")")) {
+      typedName = typedName.split(" (")[0].trim();
+  }
+  
   const data = {
     date: document.getElementById("date").value,
-    desc: document.getElementById("desc").value.trim(),
+    desc: typedName,
     credit: Number(document.getElementById("credit").value),
     debit: Number(document.getElementById("debit").value),
     timestamp: Date.now()
   };
   if(!data.desc) return alert("विवरण दर्ज करें!");
+  
+  // 1. Save in Second App Normally
   db.ref(currentPath).push(data);
+  
+  // 2. Cross-Save to First App Ledger Account if Name matches master register
+  const matchKey = typedName.toLowerCase();
+  if(firstAppCustomerMap[matchKey]) {
+      const firstAppId = firstAppCustomerMap[matchKey];
+      const sourceLabel = currentPath === "bankKhata" ? "🏦 बैंक खाता" : "🧾 खर्चा खाता";
+      
+      const firstAppData = {
+          startDate: data.date,
+          endDate: "",
+          credit: data.credit,
+          debit: data.debit,
+          interest: 0,
+          days: 0,
+          interestAmount: 0,
+          interestType: data.debit > 0 ? "debit" : "credit",
+          note: `Auto Sync From App-2 (${sourceLabel})`
+      };
+      firstAppDb.ref(`ledgers/${firstAppId}/default`).push(firstAppData);
+  }
+  
   closePopup();
+}
+
+// Pulls real-time registers from First App (UPDATED: Merges Name + Village into suggestion list)
+function loadFirstAppSuggestions() {
+    firstAppDb.ref("customers").on("value", snap => {
+        descSuggestions = [];
+        firstAppCustomerMap = {};
+        snap.forEach(child => {
+            let cust = child.val();
+            if(cust && cust.name) {
+                let name = cust.name.trim();
+                let village = cust.village ? cust.village.trim() : "No Village";
+                
+                // Show Name and Village combined inside the layout dropdown suggestion
+                descSuggestions.push(`${name} (${village})`);
+                firstAppCustomerMap[name.toLowerCase()] = child.key;
+            }
+        });
+        updateDescList();
+    });
 }
 
 function updateDescList(){
   const list = document.getElementById("descList");
   list.innerHTML = "";
-  descSuggestions.forEach(name => {
+  descSuggestions.forEach(displayString => {
     const option = document.createElement("option");
-    option.value = name;
+    option.value = displayString;
     list.appendChild(option);
   });
 }
@@ -583,8 +744,16 @@ function loadLedger(){
   });
 }
 
+// UPDATED DELETION LOGIC: Intercepts local removal event to also mirror it into First App live bucket
 function deleteEntry(id) {
+  const entry = allData[id];
+  if (!entry) return;
+
   if (confirm("क्या आप वाकई इस एंट्री को डिलीट करना चाहते हैं?")) {
+    // Mirror delete request into First App live bucket
+    syncDeleteToFirstApp(entry.desc, entry);
+    
+    // Perform standard local removal inside second app space
     db.ref(`${currentPath}/${id}`).remove();
   }
 }
@@ -599,12 +768,6 @@ function renderTable(){
   tbody.innerHTML = "";
 
   let entries = Object.keys(allData).map(id => ({ id, ...allData[id] }));
-
-  descSuggestions.clear();
-  Object.values(allData).forEach(e => {
-    if (e.desc) descSuggestions.add(e.desc);
-  });
-  updateDescList();
 
   entries = entries.filter(e => {
     if (from && e.date < from) return false;
@@ -637,7 +800,7 @@ function renderTable(){
       <td class="customer-name" onclick="filterByCustomer('${e.desc}')">${e.desc}</td>
       <td class="credit">${e.credit > 0 ? e.credit : '-'}</td>
       <td class="debit">${e.debit > 0 ? e.debit : '-'}</td>
-      <td class="action-cell">
+      <td class="action-cell no-print">
         <button class="edit-btn" onclick="editEntry('${e.id}')"><i class="fas fa-edit"></i></button>
         <button class="delete-btn" onclick="deleteEntry('${e.id}')"><i class="fas fa-trash"></i></button>
       </td>`;
@@ -655,7 +818,6 @@ function filterByCustomer(name) {
     renderTable();
 }
 
-// Separate Daily Summary Calculation Logic
 function showDailyReport() {
 
     let dailyData = {};
@@ -727,15 +889,26 @@ function editEntry(id) {
   const saveBtn = document.getElementById("saveButton");
   saveBtn.innerText = "💾 अपडेट करें";
   saveBtn.onclick = () => {
+    let updatedName = document.getElementById("desc").value.trim();
+    if (updatedName.includes(" (") && updatedName.endsWith(")")) {
+        updatedName = updatedName.split(" (")[0].trim();
+    }
+
     const updated = {
       date: document.getElementById("date").value,
-      desc: document.getElementById("desc").value.trim(),
+      desc: updatedName,
       credit: Number(document.getElementById("credit").value),
       debit: Number(document.getElementById("debit").value),
       timestamp: entry.timestamp || Date.now()
     };
     if(!updated.desc) return alert("विवरण दर्ज करें!");
-    db.ref(`${currentPath}/${id}`).update(updated).then(closePopup);
+    
+    // Update locally inside second app
+    db.ref(`${currentPath}/${id}`).update(updated).then(() => {
+      // Trigger Inter-App Cross Sync update live for App 1
+      syncEditToFirstApp(updatedName, updated);
+      closePopup();
+    });
   };
 }
 
@@ -891,9 +1064,6 @@ function openCustomPreview() {
   document.getElementById("printPreviewModal").style.display = "block";
 }
 
-/** * TASK 2 & 3: Improved Combined Ledger Logic
- * This function renders the UI shell.
- */
 function openCombinedLedger(){
   let combined = [];
   db.ref("bankKhata").once("value",snap=>{
@@ -904,15 +1074,11 @@ function openCombinedLedger(){
       Object.values(data2).forEach(e=>{ combined.push({...e,type:"Kharch"}); });
       combined.sort((a,b)=>b.date.localeCompare(a.date));
       
-      // Render Initial Shell (Persistent Input)
       renderCombinedShell(combined);
     });
   });
 }
 
-/**
- * UPDATED: Combined Ledger Shell matches normal Ledger print preview
- */
 function renderCombinedShell(data){
     let html = `
     <div style="padding:20px; font-family:sans-serif; background:white;">
@@ -955,17 +1121,13 @@ function renderCombinedShell(data){
     document.getElementById("previewContent").innerHTML = html;
     document.getElementById("printPreviewModal").style.display = "block";
 
-    // Attach real-time search listener
     const input = document.getElementById("combinedSearchInput");
     input.addEventListener("input", (e) => {
         updateCombinedTable(data, e.target.value);
     });
 
-    // Initial fill
     updateCombinedTable(data, "");
 
-
-// ✅ YAH ADD KARNA HAI (IMPORTANT)
 document.getElementById("combinedFromDate").addEventListener("input", () => {
   updateCombinedTable(data, document.getElementById("combinedSearchInput").value);
 });
@@ -976,10 +1138,6 @@ document.getElementById("combinedToDate").addEventListener("input", () => {
 
 }
 
-
-/**
- * TASK 2 & 3: Updates table content and balances without refreshing the input field
- */
 function updateCombinedTable(data, query){
     const q = query.toLowerCase().trim();
     const tbody = document.getElementById("combinedTableBody");
@@ -990,20 +1148,16 @@ const to = document.getElementById("combinedToDate")?.value;
 let totalCr = 0, totalDb = 0;
     let filteredHtml = "";
     
-    // TASK 3: Variables for Totals
     let bankCr = 0, bankDb = 0;
     let khCr = 0, khDb = 0;
 
     data.forEach(e => {
-// DATE FILTER
 if (from && e.date < from) return;
 if (to && e.date > to) return;
 
-// TOTAL
 totalCr += Number(e.credit || 0);
 totalDb += Number(e.debit || 0);
         if (q === "" || e.desc.toLowerCase().includes(q)) {
-            // Aggregate totals for the searched name
             if (q !== "") {
                 if (e.type === "Bank") {
                     bankCr += Number(e.credit || 0);
@@ -1028,7 +1182,6 @@ totalDb += Number(e.debit || 0);
 document.getElementById("combinedTotals").innerHTML =
   "💰 Total Credit: ₹" + totalCr + " | 💸 Total Debit: ₹" + totalDb;
 
-    // TASK 3: Render the Balance Summary if searching
     if (q !== "") {
         const finalBal = (bankCr + khCr) - (bankDb + khDb);
         summaryArea.innerHTML = `
@@ -1049,48 +1202,146 @@ document.getElementById("combinedTotals").innerHTML =
     }
 }
 
+// NEW SYNC MONITOR REPORT MAIN LOAD LOGIC WITH STATUS FILTER
+function openSyncReport() {
+  let combined = [];
+  db.ref("bankKhata").once("value", snap1 => {
+    const d1 = snap1.val() || {};
+    Object.keys(d1).forEach(k => { combined.push({ ...d1[k], id: k, type: "Bank" }); });
+    
+    db.ref("kharchKhata").once("value", snap2 => {
+      const d2 = snap2.val() || {};
+      Object.keys(d2).forEach(k => { combined.push({ ...d2[k], id: k, type: "Kharch" }); });
+      
+      // Sorted by timestamp descending so the last entry is strictly at the top
+      combined.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      syncReportMasterData = combined; // Save globally
+      
+      renderSyncReportShell();
+    });
+  });
+}
+
+function renderSyncReportShell() {
+  let pendingCount = 0;
+  let syncedCount = 0;
+  
+  // Calculate stats from global array
+  syncReportMasterData.forEach(e => {
+    const matchKey = e.desc.toLowerCase().trim();
+    if (firstAppCustomerMap[matchKey]) syncedCount++;
+    else pendingCount++;
+  });
+
+  let shellHtml = `
+  <div style="padding:15px; font-family:sans-serif; background:white;">
+    <h1 style="text-align:center; margin:0; color:#512da8; font-size:22px;">SAINI TRADING COMPANY</h1>
+    <h3 style="text-align:center; margin:5px 0 20px 0; font-size:16px;">📊 App-2 to App-1 Sync Data Report</h3>
+    
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
+      <div style="background:#e8f5e9; padding:10px; border-radius:10px; text-align:center; border:1px solid #a5d6a7;">
+        <div style="font-size:11px; color:#2e7d32; font-weight:bold;">Sent Records (App-1)</div>
+        <div style="font-size:20px; font-weight:800; color:#1b5e20;">${syncedCount}</div>
+      </div>
+      <div style="background:#ffebee; padding:10px; border-radius:10px; text-align:center; border:1px solid #ffcdd2;">
+        <div style="font-size:11px; color:#c62828; font-weight:bold;">Pending Records (Not Sent)</div>
+        <div style="font-size:20px; font-weight:800; color:#b71c1c;">${pendingCount}</div>
+      </div>
+    </div>
+
+    <div class="no-print" style="margin-bottom:15px; background:#f5f5f5; padding:8px; border-radius:12px;">
+      <select id="syncStateFilter" style="margin:0; padding:12px; width:100%; border:1px solid #ccc; border-radius:10px; font-size:15px;" onchange="filterSyncTableBody()">
+        <option value="all">🔍 सभी एंट्री देखें (All Data)</option>
+        <option value="sent">✅ केवल Sent (App-1 Added) देखें</option>
+        <option value="pending">❌ केवल Pending (Not Sent) देखें</option>
+      </select>
+    </div>
+    
+    <div style="background:#fffde7; padding:10px; border-radius:8px; font-size:12px; margin-bottom:15px; color:#f57f17; border:1px solid #fff59d; font-weight:bold; line-height:1.4;">
+      💡 Note: Jo entries "Pending" dikha rahi hain, unka naam App-1 ke "गाँव प्रबंधन / ग्राहक सूची" ke clear master registration name se bilkul exact match hona chahiye tabhi auto send hota hai.
+    </div>
+
+    <div class="combined-scroll-wrapper" style="max-height:55vh; overflow-y:auto; border:1px solid #ddd; border-radius:8px;">
+      <table class="sync-report-table" border="1">
+        <thead>
+          <tr style="background:#f2f2f2; color:#512da8;">
+            <th>तारीख</th>
+            <th style="text-align:left;">विवरण (नाम)</th>
+            <th>खाता Type</th>
+            <th>जमा (Cr)</th>
+            <th>नाम (Db)</th>
+            <th>Sync Status</th>
+          </tr>
+        </thead>
+        <tbody id="syncReportTableBody"></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  document.getElementById("previewContent").innerHTML = shellHtml;
+  document.getElementById("printPreviewModal").style.display = "block";
+  
+  // Render table content
+  filterSyncTableBody();
+}
+
+// Separate Sync Filter Function
+function filterSyncTableBody() {
+  const filterVal = document.getElementById("syncStateFilter").value;
+  const tbody = document.getElementById("syncReportTableBody");
+  tbody.innerHTML = "";
+  
+  let rowsHtml = "";
+  syncReportMasterData.forEach(e => {
+    const matchKey = e.desc.toLowerCase().trim();
+    const isSynced = firstAppCustomerMap[matchKey] ? true : false;
+    
+    if (filterVal === "sent" && !isSynced) return;
+    if (filterVal === "pending" && isSynced) return;
+    
+    const statusLabel = isSynced 
+      ? `<span style="color: #4caf50; font-weight: bold; font-size:11px;"><i class="fas fa-check-circle"></i> Sent<br>(App 1)</span>` 
+      : `<span style="color: #f44336; font-weight: bold; font-size:11px;"><i class="fas fa-exclamation-triangle"></i> Pending</span>`;
+      
+    rowsHtml += `<tr>
+      <td>${formatDate(e.date)}</td>
+      <td style="text-align:left;">${e.desc}</td>
+      <td>${e.type === 'Bank' ? 'Bank' : 'Kharch'}</td>
+      <td style="color:blue;">${e.credit > 0 ? '₹'+e.credit : '-'}</td>
+      <td style="color:red;">${e.debit > 0 ? '₹'+e.debit : '-'}</td>
+      <td>${statusLabel}</td>
+    </tr>`;
+  });
+  
+  tbody.innerHTML = rowsHtml || `<tr><td colspan="6" style="text-align:center; padding:20px; color:red; font-weight:bold;">चुने हुए फ़िल्टर के लिए कोई रिकॉर्ड नहीं मिला</td></tr>`;
+}
+
 window.onload = function(){
 updateMainBalances();
 initSecurity();
+loadFirstAppSuggestions();
 }
 
-
-
 let lastTap = 0;
-
 document.addEventListener("click", function () {
-
     const now = Date.now();
-
     if (now - lastTap < 300) {
-
         if (document.getElementById("ledgerScreen").classList.contains("active")) {
             goHome();
         }
-
     }
-
     lastTap = now;
-
 });
+
 let lastBackPress = 0;
-
 document.addEventListener("backbutton", function (e) {
-
     const now = new Date().getTime();
-
     if (now - lastBackPress < 2000) {
-
         navigator.app.exitApp();
-
     } else {
-
-        alert("App बंद करने के लिए फिर से BACK दबाएं");
-
+        alert("App बंद करने के लिए फिर se BACK दबाएं");
         lastBackPress = now;
-
     }
-
 }, false);
 </script>
 
