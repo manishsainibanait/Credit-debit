@@ -554,7 +554,7 @@ const firstAppDb = firstAppInstance.database();
 let currentPath = "";
 let allData = {};
 let descSuggestions = []; // Array of strings format "Name (Father - Village)"
-let firstAppCustomerMap = {}; // Maps lowerCaseName -> FirstApp Customer Key
+let firstAppCustomerMap = {}; // Maps lowerCase format or structural layout text -> FirstApp Customer Key
 let syncReportMasterData = []; // Global holder for data sync records
 let lastSelectedDate = ""; // Variable to remember back date values between clicks
 
@@ -569,15 +569,15 @@ function formatDate(dateStr) {
 }
 
 // ULTIMATE ROUTING ENGINE: Live parse date strings to route into true latest chronological account calendar target node
-function syncDataToFirstAppWithTargetRouting(customerName, secondAppData, explicitKey = null) {
-  const matchKey = customerName.toLowerCase().trim();
+function syncDataToFirstAppWithTargetRouting(lookupKey, secondAppData, explicitKey = null) {
+  const matchKey = lookupKey.toLowerCase().trim();
   if (firstAppCustomerMap[matchKey]) {
     const firstAppId = firstAppCustomerMap[matchKey];
     const sourceLabel = currentPath === "bankKhata" ? "🏦 बैंक खाता" : "🧾 खर्चा खाता";
     
     // Live full snap read
     firstAppDb.ref(`accounts/${firstAppId}`).once("value").then(accSnap => {
-      let targetAccountId = "default"; // Standard Fallback
+      let targetAccountId = "default"; // Standard Fallback Rule
       
       if (accSnap.exists()) {
         let maxTime = 0;
@@ -607,6 +607,7 @@ function syncDataToFirstAppWithTargetRouting(customerName, secondAppData, explic
         });
       }
       
+      // FIXED: Accounts snap exist na ho tab bhi process automatic bypass "default" node par save karega
       const pathTarget = `ledgers/${firstAppId}/${targetAccountId}`;
       
       const firstAppData = {
@@ -632,9 +633,15 @@ function syncDataToFirstAppWithTargetRouting(customerName, secondAppData, explic
 
 // Looks up matching entry across all potential account paths inside First App and DELETES it cleanly
 function syncDeleteToFirstApp(customerName, secondAppData) {
-  const matchKey = customerName.toLowerCase().trim();
-  if (firstAppCustomerMap[matchKey]) {
-    const firstAppId = firstAppCustomerMap[matchKey];
+  let lookupKey = customerName.toLowerCase().trim();
+  
+  const foundSug = descSuggestions.find(s => s.toLowerCase().startsWith(customerName.toLowerCase() + " (") || s.toLowerCase() === customerName.toLowerCase());
+  if (foundSug) {
+    lookupKey = foundSug.toLowerCase().trim();
+  }
+  
+  if (firstAppCustomerMap[lookupKey]) {
+    const firstAppId = firstAppCustomerMap[lookupKey];
     const sourceLabel = currentPath === "bankKhata" ? "🏦 बैंक खाता" : "🧾 खर्चा खाता";
     
     firstAppDb.ref(`ledgers/${firstAppId}`).once("value").then(snap => {
@@ -689,12 +696,19 @@ function closePopup(){
   document.getElementById("popupForm").style.display = "none";
 }
 
-// INTER-APP SAVE SYNC LOGIC (Saves clear typed text or filters cleanly from selection)
+// INTER-APP SAVE SYNC LOGIC (Saves clear typed text cleanly)
 function saveNew(){
   let typedName = document.getElementById("desc").value.trim();
+  let lookupKey = typedName.toLowerCase().trim();
   
   if (typedName.includes(" (") && typedName.endsWith(")")) {
+      lookupKey = typedName.toLowerCase().trim();
       typedName = typedName.split(" (")[0].trim();
+  } else {
+      const foundSug = descSuggestions.find(s => s.toLowerCase().startsWith(typedName.toLowerCase() + " (") || s.toLowerCase() === typedName.toLowerCase());
+      if (foundSug) {
+          lookupKey = foundSug.toLowerCase().trim();
+      }
   }
   
   lastSelectedDate = document.getElementById("date").value;
@@ -709,7 +723,7 @@ function saveNew(){
   if(!data.desc) return alert("विवरण दर्ज करें!");
   
   db.ref(currentPath).push(data);
-  syncDataToFirstAppWithTargetRouting(typedName, data);
+  syncDataToFirstAppWithTargetRouting(lookupKey, data);
   
   closePopup();
 }
@@ -725,8 +739,12 @@ function loadFirstAppSuggestions() {
                 let father = cust.father ? cust.father.trim() : "No Father";
                 let village = cust.village ? cust.village.trim() : "No Village";
                 
-                descSuggestions.push(`${name} (${father} - ${village})`);
-                firstAppCustomerMap[name.toLowerCase()] = child.key;
+                let uniqueString = `${name} (${father} - ${village})`;
+                descSuggestions.push(uniqueString);
+                
+                // Lowecase format layout parameters mapped safely for exact key tracking
+                firstAppCustomerMap[uniqueString.toLowerCase().trim()] = child.key;
+                firstAppCustomerMap[name.toLowerCase().trim()] = child.key;
             }
         });
         updateDescList();
@@ -909,8 +927,16 @@ function editEntry(id) {
   saveBtn.innerText = "💾 अपडेट करें";
   saveBtn.onclick = () => {
     let updatedName = document.getElementById("desc").value.trim();
+    let lookupKey = updatedName.toLowerCase().trim();
+    
     if (updatedName.includes(" (") && updatedName.endsWith(")")) {
+        lookupKey = updatedName.toLowerCase().trim();
         updatedName = updatedName.split(" (")[0].trim();
+    } else {
+        const foundSug = descSuggestions.find(s => s.toLowerCase().startsWith(updatedName.toLowerCase() + " (") || s.toLowerCase() === updatedName.toLowerCase());
+        if (foundSug) {
+            lookupKey = foundSug.toLowerCase().trim();
+        }
     }
 
     const updated = {
@@ -922,9 +948,8 @@ function editEntry(id) {
     };
     if(!updated.desc) return alert("विवरण दर्ज करें!");
     
-    const matchKey = updatedName.toLowerCase().trim();
-    if (firstAppCustomerMap[matchKey]) {
-      const firstAppId = firstAppCustomerMap[matchKey];
+    if (firstAppCustomerMap[lookupKey]) {
+      const firstAppId = firstAppCustomerMap[lookupKey];
       const sourceLabel = currentPath === "bankKhata" ? "🏦 बैंक खाता" : "🧾 खर्चा खाता";
       
       firstAppDb.ref(`ledgers/${firstAppId}`).once("value").then(snap => {
@@ -941,7 +966,7 @@ function editEntry(id) {
         }
         
         db.ref(`${currentPath}/${id}`).update(updated).then(() => {
-          syncDataToFirstAppWithTargetRouting(updatedName, updated, matchedFirstAppKey);
+          syncDataToFirstAppWithTargetRouting(lookupKey, updated, matchedFirstAppKey);
           closePopup();
         });
       });
@@ -1257,7 +1282,11 @@ function renderSyncReportShell() {
   
   // Calculate stats from global array
   syncReportMasterData.forEach(e => {
-    const matchKey = e.desc.toLowerCase().trim();
+    let matchKey = e.desc.toLowerCase().trim();
+    const foundSug = descSuggestions.find(s => s.toLowerCase().startsWith(e.desc.toLowerCase() + " (") || s.toLowerCase() === e.desc.toLowerCase());
+    if (foundSug) {
+        matchKey = foundSug.toLowerCase().trim();
+    }
     if (firstAppCustomerMap[matchKey]) syncedCount++;
     else pendingCount++;
   });
@@ -1280,7 +1309,7 @@ function renderSyncReportShell() {
 
     <div class="no-print" style="margin-bottom:15px; background:#f5f5f5; padding:8px; border-radius:12px;">
       <select id="syncStateFilter" style="margin:0; padding:12px; width:100%; border:1px solid #ccc; border-radius:10px; font-size:15px;" onchange="filterSyncTableBody()">
-        <option value="all">🔍 सभी एंट्री देखें (All Data)</option>
+        <option value="all">🔍 सभी ENTRY देखें (All Data)</option>
         <option value="sent">✅ केवल Sent (App-1 Added) देखें</option>
         <option value="pending">❌ केवल Pending (Not Sent) देखें</option>
       </select>
@@ -1321,7 +1350,11 @@ function filterSyncTableBody() {
   
   let rowsHtml = "";
   syncReportMasterData.forEach(e => {
-    const matchKey = e.desc.toLowerCase().trim();
+    let matchKey = e.desc.toLowerCase().trim();
+    const foundSug = descSuggestions.find(s => s.toLowerCase().startsWith(e.desc.toLowerCase() + " (") || s.toLowerCase() === e.desc.toLowerCase());
+    if (foundSug) {
+        matchKey = foundSug.toLowerCase().trim();
+    }
     const isSynced = firstAppCustomerMap[matchKey] ? true : false;
     
     if (filterVal === "sent" && !isSynced) return;
@@ -1333,9 +1366,8 @@ function filterSyncTableBody() {
       
     let displayName = e.desc;
     let subtitleVillage = "";
-    const matchedSug = descSuggestions.find(s => s.toLowerCase().startsWith(e.desc.toLowerCase() + " ("));
-    if (matchedSug) {
-       const part = matchedSug.split(" - ");
+    if (foundSug) {
+       const part = foundSug.split(" - ");
        if (part.length > 1) {
           subtitleVillage = part[part.length - 1].replace(")", "").trim();
        }
