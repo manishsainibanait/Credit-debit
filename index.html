@@ -556,7 +556,10 @@ let allData = {};
 let descSuggestions = []; // Array of strings format "Name (Father - Village)"
 let firstAppCustomerMap = {}; // Maps lowerCase format or structural layout text -> FirstApp Customer Key
 let syncReportMasterData = []; // Global holder for data sync records
-let lastSelectedDate = ""; // Variable to remember back date values between clicks
+let lastSelectedDate = ""; 
+let currentListener = null;
+let currentListenerRef = null;
+let masterFirstAppSuggestions = []; // Dynamic storage for absolute original App-1 structures
 
 function formatMoney(num){
   return Number(num || 0).toFixed(2);
@@ -670,7 +673,11 @@ function openLedger(type){
 }
 
 function goHome(){
-  document.getElementById('ledgerScreen').classList.remove('active');
+ if(currentListener && currentListenerRef){
+  currentListenerRef.off("value", currentListener);
+  currentListener = null;
+  currentListenerRef = null;
+} document.getElementById('ledgerScreen').classList.remove('active');
   document.getElementById('homeScreen').classList.add('active');
   updateMainBalances();
 }
@@ -688,6 +695,10 @@ function openPopup(){
   document.getElementById("desc").value = "";
   document.getElementById("credit").value = "0";
   document.getElementById("debit").value = "0";
+  
+  const saveBtn = document.getElementById("saveButton");
+  saveBtn.innerText = "💾 सुरक्षित करें";
+  saveBtn.onclick = saveNew;
   
   updateDescList();
 }
@@ -724,13 +735,37 @@ function saveNew(){
   
   db.ref(currentPath).push(data);
   syncDataToFirstAppWithTargetRouting(lookupKey, data);
+
+  // ADDED FEATURE: Manual inputs instantly populated into standard local datalist suggestion arrays
+  if (typedName && !descSuggestions.some(s => s.toLowerCase() === typedName.toLowerCase() || s.toLowerCase().startsWith(typedName.toLowerCase() + " ("))) {
+      descSuggestions.push(typedName);
+      updateDescList();
+  }
   
   closePopup();
 }
 
+function mergeAllAppSuggestions(){
+  // Start fresh with absolute clean copy of App-1 Master List
+  descSuggestions = [...masterFirstAppSuggestions];
+
+  // Loop to safely parse and merge manually typed custom records from historical offline/online cache of App-2
+  if(allData) {
+      Object.values(allData).forEach(e => {
+          if(e && e.desc) {
+              let trimD = e.desc.trim();
+              if (!descSuggestions.some(s => s.toLowerCase() === trimD.toLowerCase() || s.toLowerCase().startsWith(trimD.toLowerCase() + " ("))) {
+                  descSuggestions.push(trimD);
+              }
+          }
+      });
+  }
+  updateDescList();
+}
+
 function loadFirstAppSuggestions() {
     firstAppDb.ref("customers").on("value", snap => {
-        descSuggestions = [];
+        masterFirstAppSuggestions = [];
         firstAppCustomerMap = {};
         snap.forEach(child => {
             let cust = child.val();
@@ -740,14 +775,14 @@ function loadFirstAppSuggestions() {
                 let village = cust.village ? cust.village.trim() : "No Village";
                 
                 let uniqueString = `${name} (${father} - ${village})`;
-                descSuggestions.push(uniqueString);
+                masterFirstAppSuggestions.push(uniqueString);
                 
                 // Lowecase format layout parameters mapped safely for exact key tracking
                 firstAppCustomerMap[uniqueString.toLowerCase().trim()] = child.key;
                 firstAppCustomerMap[name.toLowerCase().trim()] = child.key;
             }
         });
-        updateDescList();
+        mergeAllAppSuggestions();
     });
 }
 
@@ -762,10 +797,21 @@ function updateDescList(){
 }
 
 function loadLedger(){
-  db.ref(currentPath).on("value", snap=>{
+  if(currentListener && currentListenerRef){
+    currentListenerRef.off("value", currentListener);
+  }
+
+  currentListener = function(snap){
     allData = snap.val() || {};
+    
+    // Safety check to blend dynamic on-the-fly manual items right into local cache datalist instantly
+    mergeAllAppSuggestions();
+    
     renderTable();
-  });
+  };
+
+  currentListenerRef = db.ref(currentPath);
+  currentListenerRef.on("value", currentListener);
 }
 
 function deleteEntry(id) {
@@ -844,7 +890,7 @@ function renderTable(){
   document.getElementById("creditTotal").innerText = formatMoney(tc);
   document.getElementById("debitTotal").innerText = formatMoney(td);
   document.getElementById("balance").innerText = formatMoney(tc - td);
-  updateMainBalances();
+  updateMainBalancesOnly();
 }
 
 function filterByCustomer(name) {
@@ -976,7 +1022,7 @@ function editEntry(id) {
   };
 }
 
-function updateMainBalances(){
+function updateMainBalancesOnly(){
   const today = new Date().toISOString().split('T')[0];
   let todayBankCr = 0, todayBankDb = 0;
   let todayKharchCr = 0, todayKharchDb = 0;
@@ -1010,6 +1056,10 @@ function updateMainBalances(){
       }
     });
   });
+}
+
+function updateMainBalances(){
+  updateMainBalancesOnly();
 }
 
 document.getElementById("fromDate").addEventListener("input", renderTable);
