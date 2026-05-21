@@ -113,6 +113,20 @@ margin:5mm;
 .sync-report-table th:nth-child(4), .sync-report-table td:nth-child(4) { width: 11%; } /* Cr */
 .sync-report-table th:nth-child(5), .sync-report-table td:nth-child(5) { width: 11%; } /* Db */
 .sync-report-table th:nth-child(6), .sync-report-table td:nth-child(6) { width: 22%; font-size: 11px; } /* Status */
+
+/* --- SYSTEM AUDIT LOG ENGINE STYLES --- */
+#auditLogScreen { position: fixed; inset: 0; background: #fff; z-index: 9999; display: none; padding: 20px; overflow-y: auto; box-sizing: border-box; }
+.audit-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+.audit-meta { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #cbd5e1; padding-bottom: 6px; margin-bottom: 8px; font-size: 13px; }
+.audit-badge { padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 11px; color: #fff; text-transform: uppercase; }
+.badge-edit { background: var(--warning); }
+.badge-delete { background: var(--danger); }
+.audit-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #f1f5f9; }
+.audit-side { overflow: hidden; }
+.audit-title { font-weight: bold; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.color-old { color: #dc2626; }
+.color-new { color: #16a34a; }
+.audit-date-alert { background: #fff1f2; color: #e11d48; font-weight: bold; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; font-size: 11px; }
 </style>
 
   <meta charset="UTF-8">
@@ -378,7 +392,10 @@ white-space:nowrap;
 </header>
 
 <div class="screen active" id="homeScreen">
-  <h2 style="text-align: center; margin-top: 10px;">आज का हिसाब</h2>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+    <h2 style="margin: 0;">आज का हिसाब</h2>
+    <button onclick="openAuditLogScreen()" style="background: #475569; color: white; padding: 8px 14px; border-radius: 8px; font-weight: bold; font-size: 13px;"><i class="fas fa-history"></i> 📝 Logs</button>
+  </div>
   
   <div class="dashboard-grid">
     <div class="dash-card">
@@ -428,7 +445,10 @@ white-space:nowrap;
 </div>
 
 <div class="screen" id="ledgerScreen">
-  <button class="back-btn" onclick="goHome()"><i class="fas fa-arrow-left"></i> वापस</button>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <button class="back-btn" style="margin: 0;" onclick="goHome()"><i class="fas fa-arrow-left"></i> वापस</button>
+    <button onclick="openAuditLogScreen()" style="background: #475569; color: white; padding: 8px 14px; border-radius: 8px; font-weight: bold; font-size: 13px;"><i class="fas fa-history"></i> Logs</button>
+  </div>
   <h2 id="ledgerTitle" style="display: inline-block; margin-left: 10px;"></h2>
 
   <div id="printHeaderOnly">
@@ -521,6 +541,18 @@ white-space:nowrap;
       <button id="saveButton" class="popup-btn save-btn" onclick="saveNew()">💾 सुरक्षित करें</button>
     </div>
   </div>
+</div>
+
+<div id="auditLogScreen">
+    <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h2 style="margin: 0; color: var(--primary);"><i class="fas fa-history"></i> एंट्री ट्रैकिंग और बदलाव लॉग (Logs)</h2>
+        <div style="display: flex; gap: 6px;">
+            <button onclick="clearSystemAuditLogs()" style="background: var(--danger); color: white; padding: 8px 12px; font-size: 13px; font-weight: bold;">🗑 Logs मिटाएं</button>
+            <button onclick="closeAuditLogScreen()" style="background: var(--secondary); color: white; padding: 8px 12px; font-size: 13px; font-weight: bold;">बंद करें</button>
+        </div>
+    </div>
+    <hr style="border: none; border-top: 1px solid #ddd; margin-bottom: 15px;">
+    <div id="auditLogContent"></div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -802,7 +834,14 @@ function loadLedger(){
   }
 
   currentListener = function(snap){
-    allData = snap.val() || {};
+    allData = {};
+    if(snap.exists()) {
+        snap.forEach(child => {
+            if(child.key !== "history_logs") { // Filter out log directory locally
+                allData[child.key] = child.val();
+            }
+        });
+    }
     
     // Safety check to blend dynamic on-the-fly manual items right into local cache datalist instantly
     mergeAllAppSuggestions();
@@ -819,6 +858,26 @@ function deleteEntry(id) {
   if (!entry) return;
 
   if (confirm("क्या आप वाकई इस एंट्री को डिलीट करना चाहते हैं?")) {
+    // FIXED PERMISSION BYPASS: Log details sub-folder standard allow entry ke sath path par append hoga
+    try {
+        const sourceLabel = currentPath === "bankKhata" ? "Bank" : "Kharch";
+        const timeStr = new Date().toLocaleString("en-IN");
+        
+        db.ref(`${currentPath}/history_logs`).push({
+            type: "DELETED",
+            pathType: sourceLabel,
+            timestamp: Date.now(),
+            logTime: timeStr,
+            before: {
+                date: entry.date || "",
+                desc: entry.desc || "",
+                credit: entry.credit || 0,
+                debit: entry.debit || 0
+            },
+            after: null
+        });
+    } catch(err) { console.log("Logging exception handler caught:", err); }
+
     syncDeleteToFirstApp(entry.desc, entry);
     db.ref(`${currentPath}/${id}`).remove();
   }
@@ -994,9 +1053,34 @@ function editEntry(id) {
     };
     if(!updated.desc) return alert("विवरण दर्ज करें!");
     
+    // FIXED PERMISSION BYPASS: Log details sub-folder node allow parameters write process rules execution
+    try {
+        const sourceLabel = currentPath === "bankKhata" ? "Bank" : "Kharch";
+        const timeStr = new Date().toLocaleString("en-IN");
+        
+        db.ref(`${currentPath}/history_logs`).push({
+            type: "EDITED",
+            pathType: sourceLabel,
+            timestamp: Date.now(),
+            logTime: timeStr,
+            before: {
+                date: entry.date || "",
+                desc: entry.desc || "",
+                credit: entry.credit || 0,
+                debit: entry.debit || 0
+            },
+            after: {
+                date: updated.date || "",
+                desc: updated.desc || "",
+                credit: updated.credit || 0,
+                debit: updated.debit || 0
+            }
+        });
+    } catch(err) { console.log("Logging runtime catch exception handled:", err); }
+    
     if (firstAppCustomerMap[lookupKey]) {
       const firstAppId = firstAppCustomerMap[lookupKey];
-      const sourceLabel = currentPath === "bankKhata" ? "🏦 बैंक खाता" : "🧾 खर्चा खाता";
+      const sourceLabelApp1 = currentPath === "bankKhata" ? "🏦 बैंक खाता" : "🧾 खर्चा खाता";
       
       firstAppDb.ref(`ledgers/${firstAppId}`).once("value").then(snap => {
         let matchedFirstAppKey = null;
@@ -1004,7 +1088,7 @@ function editEntry(id) {
           snap.forEach(accountNode => {
             accountNode.forEach(child => {
               const item = child.val();
-              if (item.startDate === entry.date && item.note && item.note.includes(sourceLabel)) {
+              if (item.startDate === entry.date && item.note && item.note.includes(sourceLabelApp1)) {
                 matchedFirstAppKey = child.key;
               }
             });
@@ -1031,16 +1115,19 @@ function updateMainBalancesOnly(){
     db.ref(path).once("value",snap=>{
       let tc=0,td=0;
       const data=snap.val()||{};
-      Object.values(data).forEach(e=>{
-          tc+=Number(e.credit);
-          td+=Number(e.debit);
-          if(e.date === today) {
-              if(path === "bankKhata") {
-                  todayBankCr += Number(e.credit);
-                  todayBankDb += Number(e.debit);
-              } else {
-                  todayKharchCr += Number(e.credit);
-                  todayKharchDb += Number(e.debit);
+      Object.keys(data).forEach(k => {
+          if (k !== "history_logs") { // Safeguard directory files from sum arrays
+              let e = data[k];
+              tc+=Number(e.credit || 0);
+              td+=Number(e.debit || 0);
+              if(e.date === today) {
+                  if(path === "bankKhata") {
+                      todayBankCr += Number(e.credit || 0);
+                      todayBankDb += Number(e.debit || 0);
+                  } else {
+                      todayKharchCr += Number(e.credit || 0);
+                      todayKharchDb += Number(e.debit || 0);
+                  }
               }
           }
       });
@@ -1183,10 +1270,14 @@ function openCombinedLedger(){
   let combined = [];
   db.ref("bankKhata").once("value",snap=>{
     const data = snap.val() || {};
-    Object.values(data).forEach(e=>{ combined.push({...e,type:"Bank"}); });
+    Object.keys(data).forEach(k => {
+        if(k !== "history_logs") combined.push({...data[k], type:"Bank"});
+    });
     db.ref("kharchKhata").once("value",snap2=>{
       const data2 = snap2.val() || {};
-      Object.values(data2).forEach(e=>{ combined.push({...e,type:"Kharch"}); });
+      Object.keys(data2).forEach(k => {
+          if(k !== "history_logs") combined.push({...data2[k], type:"Kharch"});
+      });
       combined.sort((a,b)=>b.date.localeCompare(a.date));
       
       renderCombinedShell(combined);
@@ -1312,11 +1403,15 @@ function openSyncReport() {
   let combined = [];
   db.ref("bankKhata").once("value", snap1 => {
     const d1 = snap1.val() || {};
-    Object.keys(d1).forEach(k => { combined.push({ ...d1[k], id: k, type: "Bank" }); });
+    Object.keys(d1).forEach(k => { 
+        if(k !== "history_logs") combined.push({ ...d1[k], id: k, type: "Bank" }); 
+    });
     
     db.ref("kharchKhata").once("value", snap2 => {
       const d2 = snap2.val() || {};
-      Object.keys(d2).forEach(k => { combined.push({ ...d2[k], id: k, type: "Kharch" }); });
+      Object.keys(d2).forEach(k => { 
+          if(k !== "history_logs") combined.push({ ...d2[k], id: k, type: "Kharch" }); 
+      });
       
       combined.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
       syncReportMasterData = combined; // Save globally
@@ -1437,6 +1532,103 @@ function filterSyncTableBody() {
   });
   
   tbody.innerHTML = rowsHtml || `<tr><td colspan="6" style="text-align:center; padding:20px; color:red; font-weight:bold;">चुने हुए फ़िल्टर के लिए कोई रिकॉर्ड नहीं मिला</td></tr>`;
+}
+
+/* --- REWRITTEN AUDIT LOG PANEL ENGINE (FIXED PERMISSION ROUTE) --- */
+function openAuditLogScreen() {
+    document.getElementById("auditLogScreen").style.display = "block";
+    renderSystemAuditLogs();
+}
+
+function closeAuditLogScreen() {
+    document.getElementById("auditLogScreen").style.display = "none";
+}
+
+function renderSystemAuditLogs() {
+    const container = document.getElementById("auditLogContent");
+    container.innerHTML = "<p style='text-align:center; padding:20px;'>Logs लोड हो रहे हैं, कृपया प्रतीक्षा करें...</p>";
+
+    // Read histories from BOTH permitted directories simultaneously
+    let totalLogsArr = [];
+    
+    db.ref("bankKhata/history_logs").once("value", snap1 => {
+        const bankLogs = snap1.val() || {};
+        Object.keys(bankLogs).forEach(k => { totalLogsArr.push({ id: k, ...bankLogs[k] }); });
+        
+        db.ref("kharchKhata/history_logs").once("value", snap2 => {
+            const kharchLogs = snap2.val() || {};
+            Object.keys(kharchLogs).forEach(k => { totalLogsArr.push({ id: k, ...kharchLogs[k] }); });
+            
+            if(totalLogsArr.length === 0) {
+                container.innerHTML = "<p style='text-align:center; padding:20px; color:#666;'>कोई भी मॉडificacion या डिलीट लॉग उपलब्ध नहीं है।</p>";
+                return;
+            }
+
+            // Sort reverse chronologically
+            totalLogsArr.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            let html = "";
+            totalLogsArr.forEach(log => {
+                const badgeClass = log.type === "EDITED" ? "badge-edit" : "badge-delete";
+                const dateChanged = log.type === "EDITED" && log.before?.date !== log.after?.date;
+                const pathLabel = log.pathType === 'Bank' ? '🏦 बैंक खाता' : '🧾 खर्चा खाता';
+                
+                html += `
+                <div class="audit-card">
+                    <div class="audit-meta">
+                        <div>
+                            <span class="audit-badge ${badgeClass}">${log.type || "LOG"}</span>
+                            <span style="margin-left: 6px; font-weight: bold; color: #512da8;">[${pathLabel}]</span>
+                        </div>
+                        <span style="font-weight:bold; color:#475569;">🕒 ${log.logTime || ""}</span>
+                    </div>
+                    <div class="audit-box">
+                        <div class="audit-side">
+                            <div class="audit-title color-old"><i class="fas fa-history"></i> पहले (Before Data)</div>
+                            <div style="line-height:1.5;">
+                                <b>तारीख:</b> ${log.before?.date || ""}<br>
+                                <b>विवरण:</b> ${log.before?.desc || ""}<br>
+                                <b>जमा (Cr):</b> ₹${log.before?.credit || 0}<br>
+                                <b>नाम (Db):</b> ₹${log.before?.debit || 0}
+                            </div>
+                        </div>
+                        <div class="audit-side">
+                            <div class="audit-title color-new"><i class="fas fa-check-circle"></i> बाद में (After Data)</div>
+                            <div style="line-height:1.5;">
+                                ${log.type === "DELETED" ? `
+                                    <b style="color:var(--danger); display:inline-block; margin-top:10px;"><i class="fas fa-trash-alt"></i> एंट्री सिस्टम से डिलीट कर दी गई है।</b>
+                                ` : `
+                                    <b>तारीख:</b> ${log.after?.date || ""}<br>
+                                    <b>विवरण:</b> ${log.after?.desc || ""}<br>
+                                    <b>जमा (Cr):</b> ₹${log.after?.credit || 0}<br>
+                                    <b>नाम (Db):</b> ₹${log.after?.debit || 0}
+                                    ${dateChanged ? `<br><span class="audit-date-alert"><i class="fas fa-exclamation-triangle"></i> तारीख बदली गई! (${log.before?.date} ➔ ${log.after?.date})</span>` : ''}
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        });
+    });
+}
+
+function clearSystemAuditLogs() {
+    const masterPass = prompt("सभी सुरक्षा लॉग्स को हमेशा के लिए मिटाने के लिए Master Password दर्ज करें:");
+    if (masterPass === MASTER_PASSWORD) {
+        if (confirm("क्या आप वाकई सभी मॉडिफिकेशन और डिलीट लॉग्स को डिलीट करना चाहते हैं? इसे वापस नहीं लाया जा सकता!")) {
+            Promise.all([
+                db.ref("bankKhata/history_logs").remove(),
+                db.ref("kharchKhata/history_logs").remove()
+            ]).then(() => {
+                alert("सभी ऑडिट लॉग्स सफलता पूर्वक साफ़ कर दिए गए हैं! ✅");
+                renderSystemAuditLogs();
+            });
+        }
+    } else {
+        alert("गलत मास्टर पासवर्ड! डेटा क्लीयरेंस सुरक्षा नियमों के तहत निरस्त कर दिया गया है।");
+    }
 }
 
 window.onload = function(){
