@@ -127,11 +127,41 @@ margin:5mm;
 .color-old { color: #dc2626; }
 .color-new { color: #16a34a; }
 .audit-date-alert { background: #fff1f2; color: #e11d48; font-weight: bold; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; font-size: 11px; }
+
+/* Tracker Summary Header Style */
+.tracker-balance-box {
+  background: var(--primary);
+  color: white;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  text-align: center;
+  box-shadow: var(--card-shadow);
+}
+.tracker-balance-box div {
+  flex: 1;
+}
+.tracker-balance-box div:not(:last-child) {
+  border-right: 1px solid rgba(255,255,255,0.2);
+}
+.tracker-balance-box span {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+.tracker-balance-box b {
+  font-size: 15px;
+  font-weight: bold;
+}
 </style>
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>खर्चा खाता / बैंक खाता</title>
+  <title>खर्चा खाता / bank खाता</title>
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
@@ -356,6 +386,41 @@ white-space:nowrap;
   .popup-btn { padding: 14px; border-radius: 12px; font-size: 16px; font-weight: 700; flex: 1; }
   .save-btn { background: var(--success); color: white; }
   .cancel-btn { background: #f5f5f5; color: #666; }
+
+  /* FIX: Full No-Scroll 100% Screen Fit for Mobile Layout */
+  .bank-track-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    table-layout: fixed; /* Dynamic calculations fixed inside 100% boundary */
+  }
+  .bank-track-table th, .bank-track-table td {
+    padding: 8px 1px; /* Super tight padding to avoid collision */
+    border: 1px solid #ddd;
+    text-align: center;
+    vertical-align: middle;
+    word-break: break-all;
+  }
+  .bank-track-table td {
+    white-space: nowrap; /* Ensures amount stays in a single line */
+  }
+  .bank-track-table td:nth-child(1) {
+    white-space: normal; /* Name column wraps to next line if long */
+    word-break: break-word;
+  }
+  .bank-track-table th { background: #512da8; color: white; font-weight: bold; }
+  
+  /* PERFECT PROPORTIONS UPDATED: Name coloum chota kiya (20%), amount coloums bade kiye for exact 100% no-scroll fit */
+  .bank-track-table th:nth-child(1), .bank-track-table td:nth-child(1) { width: 20%; text-align: left; font-weight: bold; }
+  .bank-track-table th:nth-child(2), .bank-track-table td:nth-child(2) { width: 18%; }
+  .bank-track-table th:nth-child(3), .bank-track-table td:nth-child(3) { width: 22%; }
+  .bank-track-table th:nth-child(4), .bank-track-table td:nth-child(4) { width: 25%; }
+  .bank-track-table th:nth-child(5), .bank-track-table td:nth-child(5) { width: 15%; }
+
+  /* UPDATED BADGES: Clear, Pending and Advance Color States */
+  .status-badge-success { background: #e8f5e9; color: #2e7d32; font-weight: bold; padding: 2px 3px; border-radius: 4px; font-size: 9px; display: inline-block; }
+  .status-badge-pending { background: #ffebee; color: #c62828; font-weight: bold; padding: 2px 3px; border-radius: 4px; font-size: 9px; display: inline-block; }
+  .status-badge-advance { background: #e3f2fd; color: #0d47a1; font-weight: bold; padding: 2px 3px; border-radius: 4px; font-size: 9px; display: inline-block; }
 </style>
 </head>
 <body>
@@ -439,6 +504,13 @@ white-space:nowrap;
       <div style="text-align: left;">
         <div style="font-size: 14px; color: #666;">📊 Data Cross Sync Report</div>
         <div class="balance" id="syncStatusSummary" style="color: var(--warning); font-size: 16px;">चेक करें कौन सा डेटा App 1 में गया</div>
+      </div>
+    </div>
+    
+    <div class="balance-box" onclick="openBankPaymentTracker()" style="cursor: pointer; border-left: 5px solid #009688;">
+      <div style="text-align: left;">
+        <div style="font-size: 14px; color: #666;">💳 Bank Payment Tracking Log</div>
+        <div class="balance" style="color: #009688; font-size: 16px;">चेक करें Debit/Credit & Pending Balance</div>
       </div>
     </div>
   </div>
@@ -595,6 +667,11 @@ let masterFirstAppSuggestions = []; // Dynamic storage for absolute original App
 
 function formatMoney(num){
   return Number(num || 0).toFixed(2);
+}
+
+// NEW HELPER: Remove .00 decimals from table display to prevent mobile screen text cutting
+function formatShortMoney(num){
+  return Math.round(Number(num || 0));
 }
 
 function formatDate(dateStr) {
@@ -937,8 +1014,8 @@ function renderTable(){
          <div style="font-weight:bold; color:var(--secondary);">${displayName}</div>
          ${subtitleVillage ? `<div style="font-size:11px; color:#555; font-style:italic; font-weight:normal; margin-top:2px;">${subtitleVillage}</div>` : ''}
       </td>
-      <td class="credit">${e.credit > 0 ? e.credit : '-'}</td>
-      <td class="debit">${e.debit > 0 ? e.debit : '-'}</td>
+      <td class="credit">${e.credit > 0 ? formatShortMoney(e.credit) : '-'}</td>
+      <td class="debit">${e.debit > 0 ? formatShortMoney(e.debit) : '-'}</td>
       <td class="action-cell no-print">
         <button class="edit-btn" onclick="editEntry('${e.id}')"><i class="fas fa-edit"></i></button>
         <button class="delete-btn" onclick="deleteEntry('${e.id}')"><i class="fas fa-trash"></i></button>
@@ -946,9 +1023,9 @@ function renderTable(){
     tbody.appendChild(tr);
   });
 
-  document.getElementById("creditTotal").innerText = formatMoney(tc);
-  document.getElementById("debitTotal").innerText = formatMoney(td);
-  document.getElementById("balance").innerText = formatMoney(tc - td);
+  document.getElementById("creditTotal").innerText = formatShortMoney(tc);
+  document.getElementById("debitTotal").innerText = formatShortMoney(td);
+  document.getElementById("balance").innerText = formatShortMoney(tc - td);
   updateMainBalancesOnly();
 }
 
@@ -998,9 +1075,9 @@ function showDailyReport() {
 
         html += `<tr>
         <td style="padding:10px;text-align:center;">${d.split('-').reverse().join('-')}</td>
-        <td style="padding:10px;text-align:center;color:blue;">${cr}</td>
-        <td style="padding:10px;text-align:center;color:red;">${db}</td>
-        <td style="padding:10px;text-align:center;font-weight:bold;">${runningBalance}</td>
+        <td style="padding:10px;text-align:center;color:blue;">${formatShortMoney(cr)}</td>
+        <td style="padding:10px;text-align:center;color:red;">${formatShortMoney(db)}</td>
+        <td style="padding:10px;text-align:center;font-weight:bold;">${formatShortMoney(runningBalance)}</td>
         </tr>`;
 
         runningBalance -= cr;
@@ -1133,13 +1210,13 @@ function updateMainBalancesOnly(){
       });
       
       const el = document.getElementById(path==="kharchKhata" ? "kharchBalance" : "bankBalance");
-      if(el) el.innerText="₹"+formatMoney(tc-td);
+      if(el) el.innerText="₹"+formatShortMoney(tc-td);
       if(path === "bankKhata"){
-        document.getElementById("todayBankCr").innerText = "₹"+todayBankCr;
-        document.getElementById("todayBankDb").innerText = "₹"+todayBankDb;
+        document.getElementById("todayBankCr").innerText = "₹"+formatShortMoney(todayBankCr);
+        document.getElementById("todayBankDb").innerText = "₹"+formatShortMoney(todayBankDb);
       } else {
-        document.getElementById("todayKharchCr").innerText = "₹"+todayKharchCr;
-        document.getElementById("todayKharchDb").innerText = "₹"+todayKharchDb;
+        document.getElementById("todayKharchCr").innerText = "₹"+formatShortMoney(todayKharchCr);
+        document.getElementById("todayKharchDb").innerText = "₹"+formatShortMoney(todayKharchDb);
       }
     });
   });
@@ -1371,14 +1448,14 @@ function updateCombinedTable(data, query){
                 <td style="text-align:center; font-size:11px;">${formatDate(e.date).replace('\n', ' ')}</td>
                 <td style="font-weight:bold; color:#333; text-align:left;">${e.desc}</td>
                 <td style="text-align:center;">${e.type}</td>
-                <td style="color:blue;text-align:center;">${e.credit > 0 ? e.credit : '-'}</td>
-                <td style="color:red;text-align:center;">${e.debit > 0 ? e.debit : '-'}</td>
+                <td style="color:blue;text-align:center;">${e.credit > 0 ? formatShortMoney(e.credit) : '-'}</td>
+                <td style="color:red;text-align:center;">${e.debit > 0 ? formatShortMoney(e.debit) : '-'}</td>
             </tr>`;
         }
     });
 
     tbody.innerHTML = filteredHtml;
-    document.getElementById("combinedTotals").innerHTML = "💰 Total Credit: ₹" + totalCr + " | 💸 Total Debit: ₹" + totalDb;
+    document.getElementById("combinedTotals").innerHTML = "💰 Total Credit: ₹" + formatShortMoney(totalCr) + " | 💸 Total Debit: ₹" + formatShortMoney(totalDb);
 
     if (q !== "") {
         const finalBal = (bankCr + khCr) - (bankDb + khDb);
@@ -1386,11 +1463,11 @@ function updateCombinedTable(data, query){
         <div class="summary-container" style="border:1px solid #ddd; padding:10px; margin-bottom:15px; border-radius:8px;">
             <div style="font-size:14px; font-weight:bold; border-bottom:1px solid #eee; margin-bottom:5px;">Customer: ${query}</div>
             <div class="summary-row" style="display:flex; justify-content:space-between; font-size:12px;">
-                <span>Bank: Cr ${bankCr} / Db ${bankDb}</span>
-                <span>Kharch: Cr ${khCr} / Db ${khDb}</span>
+                <span>Bank: Cr ${formatShortMoney(bankCr)} / Db ${formatShortMoney(bankDb)}</span>
+                <span>Kharch: Cr ${formatShortMoney(khCr)} / Db ${formatShortMoney(khDb)}</span>
             </div>
             <div style="margin-top:5px; padding-top:5px; border-top:1px dashed #ccc; font-weight:bold; font-size:16px; color:var(--success); text-align:right;">
-                Balance: ₹${formatMoney(finalBal)}
+                Balance: ₹${formatShortMoney(finalBal)}
             </div>
         </div>`;
     } else {
@@ -1525,8 +1602,8 @@ function filterSyncTableBody() {
          ${subtitleVillage ? `<div style="font-size:11px; color:#555; font-style:italic; font-weight:normal; margin-top:2px;">${subtitleVillage}</div>` : ''}
       </td>
       <td>${e.type === 'Bank' ? 'Bank' : 'Kharch'}</td>
-      <td style="color:blue;">${e.credit > 0 ? '₹'+e.credit : '-'}</td>
-      <td style="color:red;">${e.debit > 0 ? '₹'+e.debit : '-'}</td>
+      <td style="color:blue;">${e.credit > 0 ? '₹'+formatShortMoney(e.credit) : '-'}</td>
+      <td style="color:red;">${e.debit > 0 ? '₹'+formatShortMoney(e.debit) : '-'}</td>
       <td>${statusLabel}</td>
     </tr>`;
   });
@@ -1588,8 +1665,8 @@ function renderSystemAuditLogs() {
                             <div style="line-height:1.5;">
                                 <b>तारीख:</b> ${log.before?.date || ""}<br>
                                 <b>विवरण:</b> ${log.before?.desc || ""}<br>
-                                <b>जमा (Cr):</b> ₹${log.before?.credit || 0}<br>
-                                <b>नाम (Db):</b> ₹${log.before?.debit || 0}
+                                <b>जमा (Cr):</b> ₹${formatShortMoney(log.before?.credit)}<br>
+                                <b>नाम (Db):</b> ₹${formatShortMoney(log.before?.debit)}
                             </div>
                         </div>
                         <div class="audit-side">
@@ -1600,8 +1677,8 @@ function renderSystemAuditLogs() {
                                 ` : `
                                     <b>तारीख:</b> ${log.after?.date || ""}<br>
                                     <b>विवरण:</b> ${log.after?.desc || ""}<br>
-                                    <b>जमा (Cr):</b> ₹${log.after?.credit || 0}<br>
-                                    <b>नाम (Db):</b> ₹${log.after?.debit || 0}
+                                    <b>जमा (Cr):</b> ₹${formatShortMoney(log.after?.credit)}<br>
+                                    <b>नाम (Db):</b> ₹${formatShortMoney(log.after?.debit)}
                                     ${dateChanged ? `<br><span class="audit-date-alert"><i class="fas fa-exclamation-triangle"></i> तारीख बदली गई! (${log.before?.date} ➔ ${log.after?.date})</span>` : ''}
                                 `}
                             </div>
@@ -1617,7 +1694,7 @@ function renderSystemAuditLogs() {
 function clearSystemAuditLogs() {
     const masterPass = prompt("सभी सुरक्षा लॉग्स को हमेशा के लिए मिटाने के लिए Master Password दर्ज करें:");
     if (masterPass === MASTER_PASSWORD) {
-        if (confirm("क्या आप वाकई सभी मॉडिफिकेशन और डिलीट लॉग्स को डिलीट करना चाहते हैं? इसे वापस नहीं लाया जा सकता!")) {
+        if (confirm("क्या आप वाकई सभी मॉडिफिकेशन yards डिलीट लॉग्स को डिलीट करना चाहते हैं? इसे वापस नहीं लाया जा सकता!")) {
             Promise.all([
                 db.ref("bankKhata/history_logs").remove(),
                 db.ref("kharchKhata/history_logs").remove()
@@ -1629,6 +1706,221 @@ function clearSystemAuditLogs() {
     } else {
         alert("गलत मास्टर पासवर्ड! डेटा क्लीयरेंस सुरक्षा नियमों के तहत निरस्त कर दिया गया है।");
     }
+}
+
+// Full Bank Payment Tracking Engine - REWRITTEN FOR SINGLE ROW ENTRIES WITH SMALL DATES
+function openBankPaymentTracker() {
+  let trackingList = [];
+
+  // Fetch from bankKhata
+  db.ref("bankKhata").once("value", snap1 => {
+    const bankEntries = snap1.val() || {};
+    Object.keys(bankEntries).forEach(k => {
+      if (k !== "history_logs") {
+        let e = bankEntries[k];
+        trackingList.push({
+          id: k,
+          name: e.desc.trim(),
+          credit: Number(e.credit || 0),
+          debit: Number(e.debit || 0),
+          date: e.date || "",
+          timestamp: e.timestamp || 0,
+          accountType: "bank"
+        });
+      }
+    });
+
+    // Fetch from kharchKhata
+    db.ref("kharchKhata").once("value", snap2 => {
+      const kharchEntries = snap2.val() || {};
+      Object.keys(kharchEntries).forEach(k => {
+        if (k !== "history_logs") {
+          let e = kharchEntries[k];
+          trackingList.push({
+            id: k,
+            name: e.desc.trim(),
+            credit: Number(e.credit || 0),
+            debit: Number(e.debit || 0),
+            date: e.date || "",
+            timestamp: e.timestamp || 0,
+            accountType: "cash"
+          });
+        }
+      });
+
+      renderBankTrackerUI(trackingList);
+    });
+  });
+}
+
+function renderBankTrackerUI(trackingList) {
+  let html = `
+  <div style="padding:15px; font-family:sans-serif; background:white;">
+    <h1 style="text-align:center; margin:0; color:#512da8; font-size:22px;">SAINI TRADING COMPANY</h1>
+    <h3 style="text-align:center; margin:5px 0 20px 0; font-size:16px;">💳 Bank Payment Tracking System</h3>
+    
+    <div class="no-print" style="margin-bottom:15px; background:#f5f5f5; padding:10px; border-radius:12px; display: flex; flex-direction: column; gap: 8px;">
+      <input type="text" id="bankTrackerSearch" placeholder="🔍 व्यक्ति का नाम खोजें..." style="width:100%; padding:12px; border:1px solid #ccc; border-radius:10px; font-size:15px; margin:0;">
+      
+      <div style="display: flex; gap: 8px; width: 100%;">
+        <div style="flex: 1;">
+          <label style="font-size: 11px; font-weight: bold; color: #666; display: block; margin-left: 2px;">From Date</label>
+          <input type="date" id="trackerFromDate" style="padding:10px; font-size:13px; margin:2px 0 0 0; border:1px solid #ccc; border-radius:10px;">
+        </div>
+        <div style="flex: 1;">
+          <label style="font-size: 11px; font-weight: bold; color: #666; display: block; margin-left: 2px;">To Date</label>
+          <input type="date" id="trackerToDate" style="padding:10px; font-size:13px; margin:2px 0 0 0; border:1px solid #ccc; border-radius:10px;">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px; width: 100%;">
+        <select id="accountTypeFilter" style="flex: 1; padding:12px; border:1px solid #ccc; border-radius:10px; font-size:14px; margin:0;">
+          <option value="all">📊 All Records (Dono Combined Dekhein)</option>
+          <option value="bank">🏦 Only Bank Accounts (Sirf Bank Tracking)</option>
+          <option value="cash">🧾 Only Cash/Kharch (Sirf Cash Flow)</option>
+        </select>
+
+        <select id="statusFilter" style="flex: 1; padding:12px; border:1px solid #ccc; border-radius:10px; font-size:14px; margin:0;">
+          <option value="all">🔍 All Status (सभी एंट्री)</option>
+          <option value="pending">❌ Pending Entries</option>
+          <option value="advance">📥 Advance Entries</option>
+          <option value="clear">✅ Clear Entries</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="tracker-balance-box">
+      <div>
+        <span>कुल जमा</span>
+        <b id="trackerTotalCredit">₹0</b>
+      </div>
+      <div>
+        <span>कुल निकासी</span>
+        <b id="trackerTotalDebit">₹0</b>
+      </div>
+      <div>
+        <span>बैलेंस</span>
+        <b id="trackerNetBalance" style="color: #aeffae;">₹0</b>
+      </div>
+    </div>
+
+    <div class="combined-scroll-wrapper" style="max-height:43vh; overflow-y:auto; border:1px solid #ddd; border-radius:8px;">
+      <table class="bank-track-table" border="1">
+        <thead>
+          <tr>
+            <th style="text-align:left;">विवरण (Name)</th>
+            <th>जमा (Cr)</th>
+            <th>निकासी (Db)</th>
+            <th>Pending</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="bankTrackerTableBody"></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  document.getElementById("previewContent").innerHTML = html;
+  document.getElementById("printPreviewModal").style.display = "block";
+
+  const filterTrackerTable = () => {
+    const query = document.getElementById("bankTrackerSearch").value.trim().toLowerCase();
+    const filterMode = document.getElementById("accountTypeFilter").value;
+    const statusMode = document.getElementById("statusFilter").value;
+    const fromDateVal = document.getElementById("trackerFromDate").value;
+    const toDateVal = document.getElementById("trackerToDate").value;
+    const tbody = document.getElementById("bankTrackerTableBody");
+    tbody.innerHTML = "";
+    let rowsHtml = "";
+
+    // Live variables to compute total on matching dynamic rules
+    let calculatedCreditTotal = 0;
+    let calculatedDebitTotal = 0;
+
+    // Sort: Newest entry always on top using timestamp
+    let filteredList = [...trackingList].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    filteredList.forEach(item => {
+      // Name Filter
+      if (query && !item.name.toLowerCase().includes(query)) return;
+
+      // Date Filter
+      if (fromDateVal && item.date < fromDateVal) return;
+      if (toDateVal && item.date > toDateVal) return;
+
+      // Account Type Filter Choice
+      if (filterMode === "bank" && item.accountType !== "bank") return;
+      if (filterMode === "cash" && item.accountType !== "cash") return;
+
+      let crToDisplay = item.credit;
+      let dbToDisplay = item.debit;
+      let netPending = dbToDisplay - crToDisplay;
+
+      // Status Filter Setup Choice
+      if (statusMode === "pending" && netPending <= 0) return;
+      if (statusMode === "advance" && netPending >= 0) return;
+      if (statusMode === "clear" && netPending !== 0) return;
+
+      // Sum up only the filtered records passing the screen rules matrix
+      calculatedCreditTotal += crToDisplay;
+      calculatedDebitTotal += dbToDisplay;
+
+      // Dynamic Math State Badges
+      let statusBadge = "";
+      if (netPending === 0) {
+        statusBadge = `<span class="status-badge-success">Clear</span>`;
+      } else if (netPending > 0) {
+        statusBadge = `<span class="status-badge-pending">Pending</span>`;
+      } else {
+        statusBadge = `<span class="status-badge-advance">Advance</span>`;
+      }
+
+      // Format clean date layout for subtitle snippet
+      let formattedDateText = item.date ? item.date.split('-').reverse().join('-') : "";
+
+      // Render rows flawlessly with an embedded smaller date below name choice
+      rowsHtml += `<tr>
+        <td style="text-align:left; font-weight:bold; line-height:1.2;">
+          <div>${item.name}</div>
+          <div style="font-size:9px; color:#777; font-weight:normal; margin-top:3px; font-style:italic;">
+            📅 ${formattedDateText}
+          </div>
+        </td>
+        <td style="color:blue;">₹${formatShortMoney(crToDisplay)}</td>
+        <td style="color:red;">₹${formatShortMoney(dbToDisplay)}</td>
+        <td style="font-weight:bold; color:${netPending > 0 ? '#d32f2f' : (netPending < 0 ? '#0d47a1' : '#2e7d32')}">
+          ₹${formatShortMoney(Math.abs(netPending))}
+        </td>
+        <td>${statusBadge}</td>
+      </tr>`;
+    });
+
+    tbody.innerHTML = rowsHtml || `<tr><td colspan="5" style="text-align:center; padding:15px; color:red; font-weight:bold;">कोई रिकॉर्ड नहीं मिला</td></tr>`;
+    
+    // Inject the real-time computed calculations safely right inside layout total nodes
+    document.getElementById("trackerTotalCredit").innerText = "₹" + formatShortMoney(calculatedCreditTotal);
+    document.getElementById("trackerTotalDebit").innerText = "₹" + formatShortMoney(calculatedDebitTotal);
+    
+    let netFinalBalance = calculatedCreditTotal - calculatedDebitTotal;
+    let balanceNode = document.getElementById("trackerNetBalance");
+    balanceNode.innerText = "₹" + formatShortMoney(netFinalBalance);
+    
+    // Dynamically shift color schema matching loss or gains profiles layout
+    if (netFinalBalance < 0) {
+        balanceNode.style.color = "#ff8a80"; // Reddish tint for debit/loss balance
+    } else {
+        balanceNode.style.color = "#aeffae"; // Greenish tint for credit/positive balance
+    }
+  };
+
+  // Wire event handlers explicitly
+  document.getElementById("bankTrackerSearch").addEventListener("input", filterTrackerTable);
+  document.getElementById("accountTypeFilter").addEventListener("change", filterTrackerTable);
+  document.getElementById("statusFilter").addEventListener("change", filterTrackerTable);
+  document.getElementById("trackerFromDate").addEventListener("input", filterTrackerTable);
+  document.getElementById("trackerToDate").addEventListener("input", filterTrackerTable);
+
+  filterTrackerTable();
 }
 
 window.onload = function(){
