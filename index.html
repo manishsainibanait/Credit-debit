@@ -157,6 +157,23 @@ margin:5mm;
   font-size: 15px;
   font-weight: bold;
 }
+
+/* NEW ADDITION: Strict Mobile Dimensions alignment for Main Khata Ledger Table */
+#ledgerTable {
+  table-layout: fixed;
+  width: 100%;
+}
+#ledgerTable th, #ledgerTable td {
+  padding: 8px 3px !important;
+  font-size: 13px;
+  text-align: center;
+  vertical-align: middle;
+}
+#ledgerTable th:nth-child(1), #ledgerTable td:nth-child(1) { width: 16%; font-size: 11px; } /* Date */
+#ledgerTable th:nth-child(2), #ledgerTable td:nth-child(2) { width: 33%; text-align: left; word-break: break-word; } /* Desc */
+#ledgerTable th:nth-child(3), #ledgerTable td:nth-child(3) { width: 23%; white-space: nowrap; } /* Cr */
+#ledgerTable th:nth-child(4), #ledgerTable td:nth-child(4) { width: 23%; white-space: nowrap; } /* Db */
+#ledgerTable th:nth-child(5), #ledgerTable td:nth-child(5) { width: 5%; } /* Action */
 </style>
 
   <meta charset="UTF-8">
@@ -465,19 +482,19 @@ white-space:nowrap;
   <div class="dashboard-grid">
     <div class="dash-card">
         <div class="title">🏦 बैंक जमा</div>
-        <div class="amt credit" id="todayBankCr">₹0</div>
+        <div class="amt credit" id="todayBankCr">₹0.00</div>
     </div>
     <div class="dash-card">
         <div class="title">🏦 बैंक निकासी</div>
-        <div class="amt debit" id="todayBankDb">₹0</div>
+        <div class="amt debit" id="todayBankDb">₹0.00</div>
     </div>
     <div class="dash-card">
         <div class="title">🧾 खर्च जमा</div>
-        <div class="amt credit" id="todayKharchCr">₹0</div>
+        <div class="amt credit" id="todayKharchCr">₹0.00</div>
     </div>
     <div class="dash-card">
         <div class="title">🧾 खर्च निकासी</div>
-        <div class="amt debit" id="todayKharchDb">₹0</div>
+        <div class="amt debit" id="todayKharchDb">₹0.00</div>
     </div>
   </div>
 
@@ -491,13 +508,13 @@ white-space:nowrap;
     <div class="balance-box" onclick="openLedger('kharchKhata')" style="cursor: pointer;">
       <div style="text-align: left;">
         <div style="font-size: 14px; color: #666;">🧾 खर्चा खाता Balance</div>
-        <div class="balance" id="kharchBalance" style="color: var(--primary);">₹0</div>
+        <div class="balance" id="kharchBalance" style="color: var(--primary);">₹0.00</div>
       </div>
     </div>
     <div class="balance-box" onclick="openLedger('bankKhata')" style="cursor: pointer;">
       <div style="text-align: left;">
         <div style="font-size: 14px; color: #666;">🏦 बैंक खाता Balance</div>
-        <div class="balance" id="bankBalance" style="color: var(--secondary);">₹0</div>
+        <div class="balance" id="bankBalance" style="color: var(--secondary);">₹0.00</div>
       </div>
     </div>
     <div class="balance-box" onclick="openSyncReport()" style="cursor: pointer; border-left: 5px solid var(--warning);">
@@ -528,18 +545,18 @@ white-space:nowrap;
     <div style="font-size: 22px; font-weight: bold;" id="printLedgerTitle"></div>
   </div>
 
-  <div class="balance-box" style="justify-content: space-between; border-left: none; background: var(--primary); color: white;">
-    <div style="text-align: center; flex: 1; border-right: 1px solid rgba(255,255,255,0.2);">
-      <div style="font-size: 11px; text-transform: uppercase;">कुल जमा</div>
-      <div id="creditTotal" style="font-weight: bold; font-size: 18px;">0</div>
+  <div class="balance-box" style="justify-content: space-between; border-left: none; background: var(--primary); color: white; padding: 12px 6px;">
+    <div style="text-align: center; flex: 1; border-right: 1px solid rgba(255,255,255,0.2); min-width: 0; padding: 0 4px;">
+      <div style="font-size: 10px; text-transform: uppercase; opacity: 0.9; white-space: nowrap;">कुल जमा</div>
+      <div id="creditTotal" style="font-weight: bold; font-size: 14px; word-break: break-all;">0.00</div>
     </div>
-    <div style="text-align: center; flex: 1; border-right: 1px solid rgba(255,255,255,0.2);">
-      <div style="font-size: 11px; text-transform: uppercase;">कुल निकासी</div>
-      <div id="debitTotal" style="font-weight: bold; font-size: 18px;">0</div>
+    <div style="text-align: center; flex: 1; border-right: 1px solid rgba(255,255,255,0.2); min-width: 0; padding: 0 4px;">
+      <div style="font-size: 10px; text-transform: uppercase; opacity: 0.9; white-space: nowrap;">कुल निकासी</div>
+      <div id="debitTotal" style="font-weight: bold; font-size: 14px; word-break: break-all;">0.00</div>
     </div>
-    <div style="text-align: center; flex: 1;">
-      <div style="font-size: 11px; text-transform: uppercase;">बैलेंस</div>
-      <div id="balance" style="font-weight: bold; font-size: 18px; color: #aeffae;">0</div>
+    <div style="text-align: center; flex: 1; min-width: 0; padding: 0 4px;">
+      <div style="font-size: 10px; text-transform: uppercase; opacity: 0.9; white-space: nowrap;">बैलेंस</div>
+      <div id="balance" style="font-weight: bold; font-size: 14px; color: #aeffae; word-break: break-all;">0.00</div>
     </div>
   </div>
 
@@ -669,7 +686,6 @@ function formatMoney(num){
   return Number(num || 0).toFixed(2);
 }
 
-// NEW HELPER: Remove .00 decimals from table display to prevent mobile screen text cutting
 function formatShortMoney(num){
   return Math.round(Number(num || 0));
 }
@@ -960,6 +976,7 @@ function deleteEntry(id) {
   }
 }
 
+// UPDATED: Entries table and internal totals changed from formatShortMoney to formatMoney for full decimal tracking (.00)
 function renderTable(){
   const from = document.getElementById("fromDate").value;
   const to = document.getElementById("toDate").value;
@@ -1014,8 +1031,8 @@ function renderTable(){
          <div style="font-weight:bold; color:var(--secondary);">${displayName}</div>
          ${subtitleVillage ? `<div style="font-size:11px; color:#555; font-style:italic; font-weight:normal; margin-top:2px;">${subtitleVillage}</div>` : ''}
       </td>
-      <td class="credit">${e.credit > 0 ? formatShortMoney(e.credit) : '-'}</td>
-      <td class="debit">${e.debit > 0 ? formatShortMoney(e.debit) : '-'}</td>
+      <td class="credit">${e.credit > 0 ? formatMoney(e.credit) : '-'}</td>
+      <td class="debit">${e.debit > 0 ? formatMoney(e.debit) : '-'}</td>
       <td class="action-cell no-print">
         <button class="edit-btn" onclick="editEntry('${e.id}')"><i class="fas fa-edit"></i></button>
         <button class="delete-btn" onclick="deleteEntry('${e.id}')"><i class="fas fa-trash"></i></button>
@@ -1023,9 +1040,9 @@ function renderTable(){
     tbody.appendChild(tr);
   });
 
-  document.getElementById("creditTotal").innerText = formatShortMoney(tc);
-  document.getElementById("debitTotal").innerText = formatShortMoney(td);
-  document.getElementById("balance").innerText = formatShortMoney(tc - td);
+  document.getElementById("creditTotal").innerText = formatMoney(tc);
+  document.getElementById("debitTotal").innerText = formatMoney(td);
+  document.getElementById("balance").innerText = formatMoney(tc - td);
   updateMainBalancesOnly();
 }
 
@@ -1034,21 +1051,60 @@ function filterByCustomer(name) {
     renderTable();
 }
 
+function updateMainBalancesOnly(){
+  const today = new Date().toISOString().split('T')[0];
+  let todayBankCr = 0, todayBankDb = 0;
+  let todayKharchCr = 0, todayKharchDb = 0;
+
+  ["kharchKhata","bankKhata"].forEach(path=>{
+    db.ref(path).once("value",snap=>{
+      let tc=0,td=0;
+      const data=snap.val()||{};
+      Object.keys(data).forEach(k => {
+          if (k !== "history_logs") { // Safeguard directory files from sum arrays
+              let e = data[k];
+              tc+=Number(e.credit || 0);
+              td+=Number(e.debit || 0);
+              if(e.date === today) {
+                  if(path === "bankKhata") {
+                      todayBankCr += Number(e.credit || 0);
+                      todayBankDb += Number(e.debit || 0);
+                  } else {
+                      todayKharchCr += Number(e.credit || 0);
+                      todayKharchDb += Number(e.debit || 0);
+                  }
+              }
+          }
+      });
+      
+      const el = document.getElementById(path==="kharchKhata" ? "kharchBalance" : "bankBalance");
+      if(el) el.innerText="₹"+formatMoney(tc-td);
+      if(path === "bankKhata"){
+        document.getElementById("todayBankCr").innerText = "₹"+formatMoney(todayBankCr);
+        document.getElementById("todayBankDb").innerText = "₹"+formatMoney(todayBankDb);
+      } else {
+        document.getElementById("todayKharchCr").innerText = "₹"+formatMoney(todayKharchCr);
+        document.getElementById("todayKharchDb").innerText = "₹"+formatMoney(todayKharchDb);
+      }
+    });
+  });
+}
+
+function updateMainBalances(){
+  updateMainBalancesOnly();
+}
+
+/* FIX CODE ADDED: Daily Report layout structure adjusted to 100% width with table-layout fixed to prevent cutoff */
 function showDailyReport() {
-
     let dailyData = {};
-
     Object.values(allData).forEach(e => {
         if(!dailyData[e.date]) dailyData[e.date] = {cr:0, db:0};
-
         dailyData[e.date].cr += Number(e.credit);
         dailyData[e.date].db += Number(e.debit);
     });
 
     let sortedDates = Object.keys(dailyData).sort((a,b)=>b.localeCompare(a));
-
     const label = currentPath === 'kharchKhata' ? "खर्च" : "बैंक";
-
     let runningBalance = 0;
 
     Object.values(allData).forEach(e=>{
@@ -1056,37 +1112,32 @@ function showDailyReport() {
         runningBalance -= Number(e.debit);
     });
 
-    let html = `<div style="padding:15px;font-family:sans-serif;">
+    let html = `<div style="padding:10px; font-family:sans-serif; width:100%; box-sizing:border-box;">
     <h3 style="text-align:center;color:#512da8;margin-bottom:15px;">📅 ${label} डेली रिपोर्ट</h3>
-
-    <table style="width:100%;border-collapse:collapse;font-size:14px;" border="1">
-
+    <table style="width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed;" border="1">
     <tr style="background:#f4f4f4;">
-    <th style="padding:10px;">तारीख</th>
-    <th style="padding:10px;color:blue;">जमा (+)</th>
-    <th style="padding:10px;color:red;">निकासी (-)</th>
-    <th style="padding:10px;">कुल शेष</th>
+    <th style="padding:8px 2px; text-align:center; width:22%;">तारीख</th>
+    <th style="padding:8px 2px; color:blue; text-align:center; width:24%;">जमा (+)</th>
+    <th style="padding:8px 2px; color:red; text-align:center; width:24%;">निकासी (-)</th>
+    <th style="padding:8px 2px; text-align:center; width:30%;">कुल शेष</th>
     </tr>`;
 
     sortedDates.forEach(d=>{
-
         let cr = dailyData[d].cr;
         let db = dailyData[d].db;
 
         html += `<tr>
-        <td style="padding:10px;text-align:center;">${d.split('-').reverse().join('-')}</td>
-        <td style="padding:10px;text-align:center;color:blue;">${formatShortMoney(cr)}</td>
-        <td style="padding:10px;text-align:center;color:red;">${formatShortMoney(db)}</td>
-        <td style="padding:10px;text-align:center;font-weight:bold;">${formatShortMoney(runningBalance)}</td>
+        <td style="padding:8px 2px; text-align:center; word-break:break-all;">${d.split('-').reverse().join('-')}</td>
+        <td style="padding:8px 2px; text-align:center; color:blue; word-break:break-all;">${formatMoney(cr)}</td>
+        <td style="padding:8px 2px; text-align:center; color:red; word-break:break-all;">${formatMoney(db)}</td>
+        <td style="padding:8px 2px; text-align:center; font-weight:bold; word-break:break-all;">${formatMoney(runningBalance)}</td>
         </tr>`;
 
         runningBalance -= cr;
         runningBalance += db;
-
     });
 
     html += `</table></div>`;
-
     document.getElementById("previewContent").innerHTML = html;
     document.getElementById("printPreviewModal").style.display = "block";
 }
@@ -1130,7 +1181,6 @@ function editEntry(id) {
     };
     if(!updated.desc) return alert("विवरण दर्ज करें!");
     
-    // FIXED PERMISSION BYPASS: Log details sub-folder node allow parameters write process rules execution
     try {
         const sourceLabel = currentPath === "bankKhata" ? "Bank" : "Kharch";
         const timeStr = new Date().toLocaleString("en-IN");
@@ -1183,49 +1233,6 @@ function editEntry(id) {
   };
 }
 
-function updateMainBalancesOnly(){
-  const today = new Date().toISOString().split('T')[0];
-  let todayBankCr = 0, todayBankDb = 0;
-  let todayKharchCr = 0, todayKharchDb = 0;
-
-  ["kharchKhata","bankKhata"].forEach(path=>{
-    db.ref(path).once("value",snap=>{
-      let tc=0,td=0;
-      const data=snap.val()||{};
-      Object.keys(data).forEach(k => {
-          if (k !== "history_logs") { // Safeguard directory files from sum arrays
-              let e = data[k];
-              tc+=Number(e.credit || 0);
-              td+=Number(e.debit || 0);
-              if(e.date === today) {
-                  if(path === "bankKhata") {
-                      todayBankCr += Number(e.credit || 0);
-                      todayBankDb += Number(e.debit || 0);
-                  } else {
-                      todayKharchCr += Number(e.credit || 0);
-                      todayKharchDb += Number(e.debit || 0);
-                  }
-              }
-          }
-      });
-      
-      const el = document.getElementById(path==="kharchKhata" ? "kharchBalance" : "bankBalance");
-      if(el) el.innerText="₹"+formatShortMoney(tc-td);
-      if(path === "bankKhata"){
-        document.getElementById("todayBankCr").innerText = "₹"+formatShortMoney(todayBankCr);
-        document.getElementById("todayBankDb").innerText = "₹"+formatShortMoney(todayBankDb);
-      } else {
-        document.getElementById("todayKharchCr").innerText = "₹"+formatShortMoney(todayKharchCr);
-        document.getElementById("todayKharchDb").innerText = "₹"+formatShortMoney(todayKharchDb);
-      }
-    });
-  });
-}
-
-function updateMainBalances(){
-  updateMainBalancesOnly();
-}
-
 document.getElementById("fromDate").addEventListener("input", renderTable);
 document.getElementById("toDate").addEventListener("input", renderTable);
 document.getElementById("searchBox").addEventListener("input", renderTable);
@@ -1248,7 +1255,7 @@ async function initSecurity() {
 }
 
 function checkFpRegistration() {
-  if (!!window.PublicKeyCredential) {
+  if (window.PublicKeyCredential) {
     document.getElementById('fpBtn').style.display = 'block';
     document.getElementById('regFpBtn').style.display = 'block';
   }
@@ -1342,7 +1349,6 @@ function openCustomPreview() {
   document.getElementById("printPreviewModal").style.display = "block";
 }
 
-// Combined View Shell & Core Filter Setup Engine logic
 function openCombinedLedger(){
   let combined = [];
   db.ref("bankKhata").once("value",snap=>{
@@ -1414,6 +1420,7 @@ function renderCombinedShell(data){
     });
 }
 
+// UPDATED: Combined ledger view rows and totals modified to formatMoney for full decimals
 function updateCombinedTable(data, query){
     const q = query.toLowerCase().trim();
     const tbody = document.getElementById("combinedTableBody");
@@ -1448,14 +1455,14 @@ function updateCombinedTable(data, query){
                 <td style="text-align:center; font-size:11px;">${formatDate(e.date).replace('\n', ' ')}</td>
                 <td style="font-weight:bold; color:#333; text-align:left;">${e.desc}</td>
                 <td style="text-align:center;">${e.type}</td>
-                <td style="color:blue;text-align:center;">${e.credit > 0 ? formatShortMoney(e.credit) : '-'}</td>
-                <td style="color:red;text-align:center;">${e.debit > 0 ? formatShortMoney(e.debit) : '-'}</td>
+                <td style="color:blue;text-align:center;">${e.credit > 0 ? formatMoney(e.credit) : '-'}</td>
+                <td style="color:red;text-align:center;">${e.debit > 0 ? formatMoney(e.debit) : '-'}</td>
             </tr>`;
         }
     });
 
     tbody.innerHTML = filteredHtml;
-    document.getElementById("combinedTotals").innerHTML = "💰 Total Credit: ₹" + formatShortMoney(totalCr) + " | 💸 Total Debit: ₹" + formatShortMoney(totalDb);
+    document.getElementById("combinedTotals").innerHTML = "💰 Total Credit: ₹" + formatMoney(totalCr) + " | 💸 Total Debit: ₹" + formatMoney(totalDb);
 
     if (q !== "") {
         const finalBal = (bankCr + khCr) - (bankDb + khDb);
@@ -1463,11 +1470,11 @@ function updateCombinedTable(data, query){
         <div class="summary-container" style="border:1px solid #ddd; padding:10px; margin-bottom:15px; border-radius:8px;">
             <div style="font-size:14px; font-weight:bold; border-bottom:1px solid #eee; margin-bottom:5px;">Customer: ${query}</div>
             <div class="summary-row" style="display:flex; justify-content:space-between; font-size:12px;">
-                <span>Bank: Cr ${formatShortMoney(bankCr)} / Db ${formatShortMoney(bankDb)}</span>
-                <span>Kharch: Cr ${formatShortMoney(khCr)} / Db ${formatShortMoney(khDb)}</span>
+                <span>Bank: Cr ${formatMoney(bankCr)} / Db ${formatMoney(bankDb)}</span>
+                <span>Kharch: Cr ${formatMoney(khCr)} / Db ${formatMoney(khDb)}</span>
             </div>
             <div style="margin-top:5px; padding-top:5px; border-top:1px dashed #ccc; font-weight:bold; font-size:16px; color:var(--success); text-align:right;">
-                Balance: ₹${formatShortMoney(finalBal)}
+                Balance: ₹${formatMoney(finalBal)}
             </div>
         </div>`;
     } else {
@@ -1475,7 +1482,6 @@ function updateCombinedTable(data, query){
     }
 }
 
-// NEW SYNC MONITOR REPORT MAIN LOAD LOGIC WITH STATUS FILTER
 function openSyncReport() {
   let combined = [];
   db.ref("bankKhata").once("value", snap1 => {
@@ -1491,7 +1497,7 @@ function openSyncReport() {
       });
       
       combined.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-      syncReportMasterData = combined; // Save globally
+      syncReportMasterData = combined; 
       
       renderSyncReportShell();
     });
@@ -1502,7 +1508,6 @@ function renderSyncReportShell() {
   let pendingCount = 0;
   let syncedCount = 0;
   
-  // Calculate stats from global array
   syncReportMasterData.forEach(e => {
     let matchKey = e.desc.toLowerCase().trim();
     const foundSug = descSuggestions.find(s => s.toLowerCase().startsWith(e.desc.toLowerCase() + " (") || s.toLowerCase() === e.desc.toLowerCase());
@@ -1564,7 +1569,7 @@ function renderSyncReportShell() {
   filterSyncTableBody();
 }
 
-// Separate Sync Filter Function
+// UPDATED: Sync Cross-report entries modified to formatMoney for uniform decimal view
 function filterSyncTableBody() {
   const filterVal = document.getElementById("syncStateFilter").value;
   const tbody = document.getElementById("syncReportTableBody");
@@ -1602,8 +1607,8 @@ function filterSyncTableBody() {
          ${subtitleVillage ? `<div style="font-size:11px; color:#555; font-style:italic; font-weight:normal; margin-top:2px;">${subtitleVillage}</div>` : ''}
       </td>
       <td>${e.type === 'Bank' ? 'Bank' : 'Kharch'}</td>
-      <td style="color:blue;">${e.credit > 0 ? '₹'+formatShortMoney(e.credit) : '-'}</td>
-      <td style="color:red;">${e.debit > 0 ? '₹'+formatShortMoney(e.debit) : '-'}</td>
+      <td style="color:blue;">${e.credit > 0 ? '₹'+formatMoney(e.credit) : '-'}</td>
+      <td style="color:red;">${e.debit > 0 ? '₹'+formatMoney(e.debit) : '-'}</td>
       <td>${statusLabel}</td>
     </tr>`;
   });
@@ -1611,7 +1616,6 @@ function filterSyncTableBody() {
   tbody.innerHTML = rowsHtml || `<tr><td colspan="6" style="text-align:center; padding:20px; color:red; font-weight:bold;">चुने हुए फ़िल्टर के लिए कोई रिकॉर्ड नहीं मिला</td></tr>`;
 }
 
-/* --- REWRITTEN AUDIT LOG PANEL ENGINE (FIXED PERMISSION ROUTE) --- */
 function openAuditLogScreen() {
     document.getElementById("auditLogScreen").style.display = "block";
     renderSystemAuditLogs();
@@ -1625,7 +1629,6 @@ function renderSystemAuditLogs() {
     const container = document.getElementById("auditLogContent");
     container.innerHTML = "<p style='text-align:center; padding:20px;'>Logs लोड हो रहे हैं, कृपया प्रतीक्षा करें...</p>";
 
-    // Read histories from BOTH permitted directories simultaneously
     let totalLogsArr = [];
     
     db.ref("bankKhata/history_logs").once("value", snap1 => {
@@ -1641,7 +1644,6 @@ function renderSystemAuditLogs() {
                 return;
             }
 
-            // Sort reverse chronologically
             totalLogsArr.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
             let html = "";
@@ -1665,8 +1667,8 @@ function renderSystemAuditLogs() {
                             <div style="line-height:1.5;">
                                 <b>तारीख:</b> ${log.before?.date || ""}<br>
                                 <b>विवरण:</b> ${log.before?.desc || ""}<br>
-                                <b>जमा (Cr):</b> ₹${formatShortMoney(log.before?.credit)}<br>
-                                <b>नाम (Db):</b> ₹${formatShortMoney(log.before?.debit)}
+                                <b>जमा (Cr):</b> ₹${formatMoney(log.before?.credit)}<br>
+                                <b>नाम (Db):</b> ₹${formatMoney(log.before?.debit)}
                             </div>
                         </div>
                         <div class="audit-side">
@@ -1677,8 +1679,8 @@ function renderSystemAuditLogs() {
                                 ` : `
                                     <b>तारीख:</b> ${log.after?.date || ""}<br>
                                     <b>विवरण:</b> ${log.after?.desc || ""}<br>
-                                    <b>जमा (Cr):</b> ₹${formatShortMoney(log.after?.credit)}<br>
-                                    <b>नाम (Db):</b> ₹${formatShortMoney(log.after?.debit)}
+                                    <b>जमा (Cr):</b> ₹${formatMoney(log.after?.credit)}<br>
+                                    <b>नाम (Db):</b> ₹${formatMoney(log.after?.debit)}
                                     ${dateChanged ? `<br><span class="audit-date-alert"><i class="fas fa-exclamation-triangle"></i> तारीख बदली गई! (${log.before?.date} ➔ ${log.after?.date})</span>` : ''}
                                 `}
                             </div>
@@ -1708,11 +1710,9 @@ function clearSystemAuditLogs() {
     }
 }
 
-// Full Bank Payment Tracking Engine - REWRITTEN FOR SINGLE ROW ENTRIES WITH SMALL DATES
 function openBankPaymentTracker() {
   let trackingList = [];
 
-  // Fetch from bankKhata
   db.ref("bankKhata").once("value", snap1 => {
     const bankEntries = snap1.val() || {};
     Object.keys(bankEntries).forEach(k => {
@@ -1730,7 +1730,6 @@ function openBankPaymentTracker() {
       }
     });
 
-    // Fetch from kharchKhata
     db.ref("kharchKhata").once("value", snap2 => {
       const kharchEntries = snap2.val() || {};
       Object.keys(kharchEntries).forEach(k => {
@@ -1753,6 +1752,7 @@ function openBankPaymentTracker() {
   });
 }
 
+// UPDATED: Bank Payment Tracker table entries and totals also set to full decimal formatMoney
 function renderBankTrackerUI(trackingList) {
   let html = `
   <div style="padding:15px; font-family:sans-serif; background:white;">
@@ -1792,15 +1792,15 @@ function renderBankTrackerUI(trackingList) {
     <div class="tracker-balance-box">
       <div>
         <span>कुल जमा</span>
-        <b id="trackerTotalCredit">₹0</b>
+        <b id="trackerTotalCredit">₹0.00</b>
       </div>
       <div>
         <span>कुल निकासी</span>
-        <b id="trackerTotalDebit">₹0</b>
+        <b id="trackerTotalDebit">₹0.00</b>
       </div>
       <div>
         <span>बैलेंस</span>
-        <b id="trackerNetBalance" style="color: #aeffae;">₹0</b>
+        <b id="trackerNetBalance" style="color: #aeffae;">₹0.00</b>
       </div>
     </div>
 
@@ -1833,22 +1833,15 @@ function renderBankTrackerUI(trackingList) {
     tbody.innerHTML = "";
     let rowsHtml = "";
 
-    // Live variables to compute total on matching dynamic rules
     let calculatedCreditTotal = 0;
     let calculatedDebitTotal = 0;
 
-    // Sort: Newest entry always on top using timestamp
     let filteredList = [...trackingList].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
     filteredList.forEach(item => {
-      // Name Filter
       if (query && !item.name.toLowerCase().includes(query)) return;
-
-      // Date Filter
       if (fromDateVal && item.date < fromDateVal) return;
       if (toDateVal && item.date > toDateVal) return;
-
-      // Account Type Filter Choice
       if (filterMode === "bank" && item.accountType !== "bank") return;
       if (filterMode === "cash" && item.accountType !== "cash") return;
 
@@ -1856,16 +1849,13 @@ function renderBankTrackerUI(trackingList) {
       let dbToDisplay = item.debit;
       let netPending = dbToDisplay - crToDisplay;
 
-      // Status Filter Setup Choice
       if (statusMode === "pending" && netPending <= 0) return;
       if (statusMode === "advance" && netPending >= 0) return;
       if (statusMode === "clear" && netPending !== 0) return;
 
-      // Sum up only the filtered records passing the screen rules matrix
       calculatedCreditTotal += crToDisplay;
       calculatedDebitTotal += dbToDisplay;
 
-      // Dynamic Math State Badges
       let statusBadge = "";
       if (netPending === 0) {
         statusBadge = `<span class="status-badge-success">Clear</span>`;
@@ -1875,10 +1865,8 @@ function renderBankTrackerUI(trackingList) {
         statusBadge = `<span class="status-badge-advance">Advance</span>`;
       }
 
-      // Format clean date layout for subtitle snippet
       let formattedDateText = item.date ? item.date.split('-').reverse().join('-') : "";
 
-      // Render rows flawlessly with an embedded smaller date below name choice
       rowsHtml += `<tr>
         <td style="text-align:left; font-weight:bold; line-height:1.2;">
           <div>${item.name}</div>
@@ -1886,10 +1874,10 @@ function renderBankTrackerUI(trackingList) {
             📅 ${formattedDateText}
           </div>
         </td>
-        <td style="color:blue;">₹${formatShortMoney(crToDisplay)}</td>
-        <td style="color:red;">₹${formatShortMoney(dbToDisplay)}</td>
+        <td style="color:blue;">₹${formatMoney(crToDisplay)}</td>
+        <td style="color:red;">₹${formatMoney(dbToDisplay)}</td>
         <td style="font-weight:bold; color:${netPending > 0 ? '#d32f2f' : (netPending < 0 ? '#0d47a1' : '#2e7d32')}">
-          ₹${formatShortMoney(Math.abs(netPending))}
+          ₹${formatMoney(Math.abs(netPending))}
         </td>
         <td>${statusBadge}</td>
       </tr>`;
@@ -1897,23 +1885,20 @@ function renderBankTrackerUI(trackingList) {
 
     tbody.innerHTML = rowsHtml || `<tr><td colspan="5" style="text-align:center; padding:15px; color:red; font-weight:bold;">कोई रिकॉर्ड नहीं मिला</td></tr>`;
     
-    // Inject the real-time computed calculations safely right inside layout total nodes
-    document.getElementById("trackerTotalCredit").innerText = "₹" + formatShortMoney(calculatedCreditTotal);
-    document.getElementById("trackerTotalDebit").innerText = "₹" + formatShortMoney(calculatedDebitTotal);
+    document.getElementById("trackerTotalCredit").innerText = "₹" + formatMoney(calculatedCreditTotal);
+    document.getElementById("trackerTotalDebit").innerText = "₹" + formatMoney(calculatedDebitTotal);
     
     let netFinalBalance = calculatedCreditTotal - calculatedDebitTotal;
     let balanceNode = document.getElementById("trackerNetBalance");
-    balanceNode.innerText = "₹" + formatShortMoney(netFinalBalance);
+    balanceNode.innerText = "₹" + formatMoney(netFinalBalance);
     
-    // Dynamically shift color schema matching loss or gains profiles layout
     if (netFinalBalance < 0) {
-        balanceNode.style.color = "#ff8a80"; // Reddish tint for debit/loss balance
+        balanceNode.style.color = "#ff8a80"; 
     } else {
-        balanceNode.style.color = "#aeffae"; // Greenish tint for credit/positive balance
+        balanceNode.style.color = "#aeffae"; 
     }
   };
 
-  // Wire event handlers explicitly
   document.getElementById("bankTrackerSearch").addEventListener("input", filterTrackerTable);
   document.getElementById("accountTypeFilter").addEventListener("change", filterTrackerTable);
   document.getElementById("statusFilter").addEventListener("change", filterTrackerTable);
