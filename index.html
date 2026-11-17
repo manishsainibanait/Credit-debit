@@ -697,7 +697,7 @@ function formatDate(dateStr) {
 }
 
 // ULTIMATE ROUTING ENGINE: Live parse date strings to route into true latest chronological account calendar target node
-function syncDataToFirstAppWithTargetRouting(lookupKey, secondAppData, explicitKey = null) {
+function syncDataToFirstAppWithTargetRouting(lookupKey, secondAppData, explicitKey = null, app2EntryId = null) {
   const matchKey = lookupKey.toLowerCase().trim();
   if (firstAppCustomerMap[matchKey]) {
     const firstAppId = firstAppCustomerMap[matchKey];
@@ -747,8 +747,13 @@ function syncDataToFirstAppWithTargetRouting(lookupKey, secondAppData, explicitK
         days: 0,
         interestAmount: 0,
         interestType: secondAppData.debit > 0 ? "debit" : "credit",
-        note: `Auto Sync From App-2 (${sourceLabel})`
+        note: `Auto Sync From App-2 (${sourceLabel})`,
+        timestamp: secondAppData.timestamp || Date.now()
       };
+
+      if (app2EntryId) {
+        firstAppData.app2Id = app2EntryId;
+      }
 
       if (explicitKey) {
         firstAppDb.ref(`${pathTarget}/${explicitKey}`).update(firstAppData);
@@ -759,8 +764,8 @@ function syncDataToFirstAppWithTargetRouting(lookupKey, secondAppData, explicitK
   }
 }
 
-// Looks up matching entry across all potential account paths inside First App and DELETES it cleanly
-function syncDeleteToFirstApp(customerName, secondAppData) {
+// Looks up matching entry across all potential account paths inside First App and DELETES only that single entry cleanly
+function syncDeleteToFirstApp(customerName, secondAppData, entryId = null) {
   let lookupKey = customerName.toLowerCase().trim();
   
   const foundSug = descSuggestions.find(s => s.toLowerCase().startsWith(customerName.toLowerCase() + " (") || s.toLowerCase() === customerName.toLowerCase());
@@ -774,15 +779,47 @@ function syncDeleteToFirstApp(customerName, secondAppData) {
     
     firstAppDb.ref(`ledgers/${firstAppId}`).once("value").then(snap => {
       if (!snap.exists()) return;
-      snap.forEach(accountNode => {
-        const accId = accountNode.key;
-        accountNode.forEach(child => {
-          const entry = child.val();
-          if (entry.startDate === secondAppData.date && entry.note && entry.note.includes(sourceLabel)) {
-            firstAppDb.ref(`ledgers/${firstAppId}/${accId}/${child.key}`).remove();
-          }
+      let targetAccId = null;
+      let targetChildKey = null;
+
+      // 1. First try exact unique app2Id match so double entries on the same date never delete each other
+      if (entryId) {
+        snap.forEach(accountNode => {
+          const accId = accountNode.key;
+          accountNode.forEach(child => {
+            const entry = child.val();
+            if (!targetChildKey && entry.app2Id === entryId) {
+              targetAccId = accId;
+              targetChildKey = child.key;
+            }
+          });
         });
-      });
+      }
+
+      // 2. Fallback for older entries without app2Id: match date + source + exact amount and delete ONLY ONE entry
+      if (!targetChildKey) {
+        snap.forEach(accountNode => {
+          const accId = accountNode.key;
+          accountNode.forEach(child => {
+            const entry = child.val();
+            if (
+              !targetChildKey &&
+              entry.startDate === secondAppData.date &&
+              entry.note &&
+              entry.note.includes(sourceLabel) &&
+              Number(entry.credit || 0) === Number(secondAppData.credit || 0) &&
+              Number(entry.debit || 0) === Number(secondAppData.debit || 0)
+            ) {
+              targetAccId = accId;
+              targetChildKey = child.key;
+            }
+          });
+        });
+      }
+
+      if (targetAccId && targetChildKey) {
+        firstAppDb.ref(`ledgers/${firstAppId}/${targetAccId}/${targetChildKey}`).remove();
+      }
     });
   }
 }
@@ -832,7 +869,7 @@ function closePopup(){
   document.getElementById("popupForm").style.display = "none";
 }
 
-// INTER-APP SAVE SYNC LOGIC (Saves clear typed text cleanly)
+// INTER-APP SAVE SYNC LOGIC (Saves clear typed text cleanly with unique entry ID)
 function saveNew(){
   let typedName = document.getElementById("desc").value.trim();
   let lookupKey = typedName.toLowerCase().trim();
@@ -848,6 +885,8 @@ function saveNew(){
   }
   
   lastSelectedDate = document.getElementById("date").value;
+  const newEntryRef = db.ref(currentPath).push();
+  const uniqueEntryId = newEntryRef.key;
   
   const data = {
     date: lastSelectedDate,
@@ -858,8 +897,8 @@ function saveNew(){
   };
   if(!data.desc) return alert("विवरण दर्ज करें!");
   
-  db.ref(currentPath).push(data);
-  syncDataToFirstAppWithTargetRouting(lookupKey, data);
+  newEntryRef.set(data);
+  syncDataToFirstAppWithTargetRouting(lookupKey, data, null, uniqueEntryId);
 
   // ADDED FEATURE: Manual inputs instantly populated into standard local datalist suggestion arrays
   if (typedName && !descSuggestions.some(s => s.toLowerCase() === typedName.toLowerCase() || s.toLowerCase().startsWith(typedName.toLowerCase() + " ("))) {
@@ -971,7 +1010,7 @@ function deleteEntry(id) {
         });
     } catch(err) { console.log("Logging exception handler caught:", err); }
 
-    syncDeleteToFirstApp(entry.desc, entry);
+    syncDeleteToFirstApp(entry.desc, entry, id);
     db.ref(`${currentPath}/${id}`).remove();
   }
 }
@@ -1212,18 +1251,38 @@ function editEntry(id) {
       firstAppDb.ref(`ledgers/${firstAppId}`).once("value").then(snap => {
         let matchedFirstAppKey = null;
         if (snap.exists()) {
+          // 1. First match exact unique app2Id so double entries on the same date never overwrite each other
           snap.forEach(accountNode => {
             accountNode.forEach(child => {
               const item = child.val();
-              if (item.startDate === entry.date && item.note && item.note.includes(sourceLabelApp1)) {
+              if (!matchedFirstAppKey && item.app2Id === id) {
                 matchedFirstAppKey = child.key;
               }
             });
           });
+
+          // 2. Fallback for older entries without app2Id: match date + source + exact old amount (only first match)
+          if (!matchedFirstAppKey) {
+            snap.forEach(accountNode => {
+              accountNode.forEach(child => {
+                const item = child.val();
+                if (
+                  !matchedFirstAppKey &&
+                  item.startDate === entry.date &&
+                  item.note &&
+                  item.note.includes(sourceLabelApp1) &&
+                  Number(item.credit || 0) === Number(entry.credit || 0) &&
+                  Number(item.debit || 0) === Number(entry.debit || 0)
+                ) {
+                  matchedFirstAppKey = child.key;
+                }
+              });
+            });
+          }
         }
         
         db.ref(`${currentPath}/${id}`).update(updated).then(() => {
-          syncDataToFirstAppWithTargetRouting(lookupKey, updated, matchedFirstAppKey);
+          syncDataToFirstAppWithTargetRouting(lookupKey, updated, matchedFirstAppKey, id);
           closePopup();
         });
       });
