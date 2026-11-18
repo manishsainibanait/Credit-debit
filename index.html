@@ -164,16 +164,32 @@ margin:5mm;
   width: 100%;
 }
 #ledgerTable th, #ledgerTable td {
-  padding: 8px 3px !important;
-  font-size: 13px;
+  padding: 8px 2px !important;
+  font-size: 12px;
   text-align: center;
   vertical-align: middle;
 }
-#ledgerTable th:nth-child(1), #ledgerTable td:nth-child(1) { width: 16%; font-size: 11px; } /* Date */
-#ledgerTable th:nth-child(2), #ledgerTable td:nth-child(2) { width: 33%; text-align: left; word-break: break-word; } /* Desc */
-#ledgerTable th:nth-child(3), #ledgerTable td:nth-child(3) { width: 23%; white-space: nowrap; } /* Cr */
-#ledgerTable th:nth-child(4), #ledgerTable td:nth-child(4) { width: 23%; white-space: nowrap; } /* Db */
+#ledgerTable th:nth-child(1), #ledgerTable td:nth-child(1) { width: 15%; font-size: 11px; } /* Date */
+#ledgerTable th:nth-child(2), #ledgerTable td:nth-child(2) { width: 32%; text-align: left; word-break: break-word; } /* Desc */
+#ledgerTable th:nth-child(3), #ledgerTable td:nth-child(3) { width: 24%; white-space: nowrap; } /* Cr */
+#ledgerTable th:nth-child(4), #ledgerTable td:nth-child(4) { width: 24%; white-space: nowrap; } /* Db */
 #ledgerTable th:nth-child(5), #ledgerTable td:nth-child(5) { width: 5%; } /* Action */
+
+.unit-tag {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 2px;
+  line-height: 1.1;
+  opacity: 0.85;
+}
+.live-amount-hint {
+  font-size: 11px;
+  font-weight: 700;
+  min-height: 16px;
+  margin-top: 2px;
+  padding-left: 4px;
+}
 </style>
 
   <meta charset="UTF-8">
@@ -617,11 +633,13 @@ white-space:nowrap;
     <div style="display: flex; gap: 10px; margin-top: 10px;">
       <div style="flex: 1;">
         <label style="font-size: 13px; font-weight: bold; color: #0d47a1;">💰 जमा (Cr)</label>
-        <input type="number" id="credit" value="0">
+        <input type="number" id="credit" value="0" oninput="updateLiveAmountHints()">
+        <div id="creditUnitHint" class="live-amount-hint" style="color: #0d47a1;"></div>
       </div>
       <div style="flex: 1;">
         <label style="font-size: 13px; font-weight: bold; color: #d32f2f;">💸 नाम (Db)</label>
-        <input type="number" id="debit" value="0">
+        <input type="number" id="debit" value="0" oninput="updateLiveAmountHints()">
+        <div id="debitUnitHint" class="live-amount-hint" style="color: #d32f2f;"></div>
       </div>
     </div>
     
@@ -684,6 +702,44 @@ let masterFirstAppSuggestions = []; // Dynamic storage for absolute original App
 
 function formatMoney(num){
   return Number(num || 0).toFixed(2);
+}
+
+function getIndianUnitSuffix(num){
+  const n = Math.abs(Number(num || 0));
+  if (n >= 10000000) return "करोड़";
+  if (n >= 100000) return "लाख";
+  return "रुपये";
+}
+
+function formatMoneyWithUnit(num){
+  const val = Number(num || 0);
+  if (val <= 0) return "-";
+  return `${formatMoney(val)}<span class="unit-tag">${getIndianUnitSuffix(val)}</span>`;
+}
+
+function formatIndianUnitPreview(num){
+  const n = Number(num || 0);
+  if (!n || n <= 0) return "";
+  const formatted = n.toLocaleString("en-IN");
+  if (n >= 10000000) {
+    return `₹${formatted} (${(n / 10000000).toFixed(2).replace(/\.00$/, "")} करोड़)`;
+  }
+  if (n >= 100000) {
+    return `₹${formatted} (${(n / 100000).toFixed(2).replace(/\.00$/, "")} लाख)`;
+  }
+  if (n >= 1000) {
+    return `₹${formatted} (${(n / 1000).toFixed(2).replace(/\.00$/, "")} हजार रुपये)`;
+  }
+  return `₹${formatted} (${n} रुपये)`;
+}
+
+function updateLiveAmountHints(){
+  const crVal = document.getElementById("credit")?.value;
+  const dbVal = document.getElementById("debit")?.value;
+  const crHint = document.getElementById("creditUnitHint");
+  const dbHint = document.getElementById("debitUnitHint");
+  if (crHint) crHint.innerText = formatIndianUnitPreview(crVal);
+  if (dbHint) dbHint.innerText = formatIndianUnitPreview(dbVal);
 }
 
 function formatShortMoney(num){
@@ -893,6 +949,7 @@ function openPopup(){
   document.getElementById("desc").value = "";
   document.getElementById("credit").value = "0";
   document.getElementById("debit").value = "0";
+  updateLiveAmountHints();
   
   const saveBtn = document.getElementById("saveButton");
   saveBtn.innerText = "💾 सुरक्षित करें";
@@ -1045,7 +1102,7 @@ function deleteEntry(id) {
   }
 }
 
-// UPDATED: Entries table and internal totals changed from formatShortMoney to formatMoney for full decimal tracking (.00)
+// UPDATED: Entries table shows Hindi unit label (रुपये / लाख / करोड़) below every amount
 function renderTable(){
   const from = document.getElementById("fromDate").value;
   const to = document.getElementById("toDate").value;
@@ -1100,8 +1157,8 @@ function renderTable(){
          <div style="font-weight:bold; color:var(--secondary);">${displayName}</div>
          ${subtitleVillage ? `<div style="font-size:11px; color:#555; font-style:italic; font-weight:normal; margin-top:2px;">${subtitleVillage}</div>` : ''}
       </td>
-      <td class="credit">${e.credit > 0 ? formatMoney(e.credit) : '-'}</td>
-      <td class="debit">${e.debit > 0 ? formatMoney(e.debit) : '-'}</td>
+      <td class="credit">${formatMoneyWithUnit(e.credit)}</td>
+      <td class="debit">${formatMoneyWithUnit(e.debit)}</td>
       <td class="action-cell no-print">
         <button class="edit-btn" onclick="editEntry('${e.id}')"><i class="fas fa-edit"></i></button>
         <button class="delete-btn" onclick="deleteEntry('${e.id}')"><i class="fas fa-trash"></i></button>
@@ -1233,6 +1290,7 @@ function editEntry(id) {
   
   document.getElementById("credit").value = oldEntry.credit;
   document.getElementById("debit").value = oldEntry.debit;
+  updateLiveAmountHints();
   
   const saveBtn = document.getElementById("saveButton");
   saveBtn.innerText = "💾 अपडेट करें";
@@ -1475,8 +1533,8 @@ function openCustomPreview() {
     html += `<tr>
       <td style="padding:8px; text-align:center;">${c[0].innerText.replace('\n', ' ')}</td>
       <td style="padding:8px;">${c[1].innerText}</td>
-      <td style="padding:8px; text-align:center; color:blue;">${c[2].innerText}</td>
-      <td style="padding:8px; text-align:center; color:red;">${c[3].innerText}</td>
+      <td style="padding:8px; text-align:center; color:blue;">${c[2].innerHTML}</td>
+      <td style="padding:8px; text-align:center; color:red;">${c[3].innerHTML}</td>
     </tr>`;
   });
   html += `</table></div>`;
@@ -1555,7 +1613,7 @@ function renderCombinedShell(data){
     });
 }
 
-// UPDATED: Combined ledger view rows and totals modified to formatMoney for full decimals
+// UPDATED: Combined ledger view rows modified to formatMoneyWithUnit so Hindi unit appears below number
 function updateCombinedTable(data, query){
     const q = query.toLowerCase().trim();
     const tbody = document.getElementById("combinedTableBody");
@@ -1590,8 +1648,8 @@ function updateCombinedTable(data, query){
                 <td style="text-align:center; font-size:11px;">${formatDate(e.date).replace('\n', ' ')}</td>
                 <td style="font-weight:bold; color:#333; text-align:left;">${e.desc}</td>
                 <td style="text-align:center;">${e.type}</td>
-                <td style="color:blue;text-align:center;">${e.credit > 0 ? formatMoney(e.credit) : '-'}</td>
-                <td style="color:red;text-align:center;">${e.debit > 0 ? formatMoney(e.debit) : '-'}</td>
+                <td style="color:blue;text-align:center;">${formatMoneyWithUnit(e.credit)}</td>
+                <td style="color:red;text-align:center;">${formatMoneyWithUnit(e.debit)}</td>
             </tr>`;
         }
     });
